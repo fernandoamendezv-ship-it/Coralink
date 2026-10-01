@@ -1,0 +1,6 @@
+{
+  "name": "Coralink - Arte & Personalización Caribeña",
+  "description": "Progressive Web App y catálogo interactivo de Coralink: regalos personalizados, papelería creativa y detalles en resina en Nicaragua (C$).",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

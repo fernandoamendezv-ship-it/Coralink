@@ -1,0 +1,131 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="100%" height="100%">
+  <defs>
+    <!-- Background Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF" />
+      <stop offset="100%" stop-color="#F0F9FF" />
+    </linearGradient>
+
+    <!-- Wave Gradients -->
+    <linearGradient id="waveGradDeep" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#071A30" />
+      <stop offset="60%" stop-color="#0B2545" />
+      <stop offset="100%" stop-color="#144272" />
+    </linearGradient>
+
+    <linearGradient id="waveGradMid" x1="0%" y1="100%" x2="80%" y2="20%">
+      <stop offset="0%" stop-color="#0B2545" />
+      <stop offset="50%" stop-color="#1BA7D9" />
+      <stop offset="100%" stop-color="#55D0F5" />
+    </linearGradient>
+
+    <linearGradient id="waveGradCyan" x1="10%" y1="90%" x2="90%" y2="10%">
+      <stop offset="0%" stop-color="#1488B8" />
+      <stop offset="60%" stop-color="#1BA7D9" />
+      <stop offset="100%" stop-color="#80E5FF" />
+    </linearGradient>
+
+    <!-- Coral Script Gradient -->
+    <linearGradient id="coralGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#FF5414" />
+      <stop offset="60%" stop-color="#FF6B35" />
+      <stop offset="100%" stop-color="#FFA270" />
+    </linearGradient>
+
+    <!-- Turquoise Script Gradient -->
+    <linearGradient id="turqGrad" x1="0%" y1="50%" x2="100%" y2="50%">
+      <stop offset="0%" stop-color="#0FA0D4" />
+      <stop offset="60%" stop-color="#1BA7D9" />
+      <stop offset="100%" stop-color="#48C6F2" />
+    </linearGradient>
+
+    <!-- Outer Ring Gradient -->
+    <linearGradient id="ringGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1BA7D9" />
+      <stop offset="50%" stop-color="#0B2545" />
+      <stop offset="100%" stop-color="#FF6B35" />
+    </linearGradient>
+
+    <filter id="subtleDrop" x="-10%" y="-10%" width="130%" height="130%">
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#0B2545" flood-opacity="0.15" />
+    </filter>
+  </defs>
+
+  <!-- Clean Background Circle -->
+  <circle cx="256" cy="256" r="248" fill="url(#bgGrad)" />
+
+  <!-- Outer Orbit Rings -->
+  <path d="M 120 70 A 200 200 0 1 1 450 320" fill="none" stroke="url(#ringGrad)" stroke-width="4.5" stroke-linecap="round" />
+  <path d="M 80 340 A 210 210 0 0 0 380 440" fill="none" stroke="#0B2545" stroke-width="3" stroke-linecap="round" />
+
+  <!-- The Wave Emblem (Left cresting into center) -->
+  <g id="wave-emblem">
+    <!-- Deepest Back Wave -->
+    <path d="M 70 330 C 50 250 70 170 120 130 C 150 105 185 100 205 118 C 175 116 150 135 135 160 C 110 205 100 280 145 350 Z" 
+          fill="url(#waveGradDeep)" />
+
+    <!-- Main Dynamic Cyan/Turquoise Wave Curl -->
+    <path d="M 85 320 C 70 230 100 150 160 110 C 190 90 220 96 230 115 C 210 108 185 116 170 138 C 145 174 135 240 175 305 Z" 
+          fill="url(#waveGradMid)" />
+
+    <!-- Froth & Crest Splash Ribbons -->
+    <path d="M 110 280 C 100 200 130 140 180 110 C 205 95 235 98 248 116 C 228 112 205 122 192 144 C 172 178 165 230 198 280 Z" 
+          fill="url(#waveGradCyan)" />
+
+    <path d="M 140 250 C 130 190 155 145 200 125 C 225 114 245 120 255 134 C 238 132 220 138 210 154 C 195 178 190 220 215 255 Z" 
+          fill="#A5EEFF" opacity="0.9" />
+
+    <!-- Droplets and Spray Accents -->
+    <circle cx="218" cy="85" r="5" fill="#1BA7D9" />
+    <circle cx="242" cy="88" r="4.5" fill="#55D0F5" />
+    <circle cx="260" cy="100" r="3.5" fill="#1BA7D9" />
+    <circle cx="185" cy="82" r="3.5" fill="#FF6B35" />
+  </g>
+
+  <!-- Typography Center Section -->
+  <g id="brand-typography">
+    <!-- HMW in Bold Solid Navy -->
+    <text x="290" y="210" 
+          text-anchor="middle" 
+          font-family="system-ui, -apple-system, 'Montserrat', 'Helvetica Neue', Arial, sans-serif" 
+          font-weight="900" 
+          font-size="88" 
+          fill="#0B2545" 
+          letter-spacing="5">HMW</text>
+
+    <!-- Coralink Stylized Wordmark -->
+    <!-- "Cora" in Coral Gradient -->
+    <g transform="translate(90, 275)" filter="url(#subtleDrop)">
+      <text x="50" y="55" 
+            font-family="'Brush Script MT', 'Dancing Script', 'Segoe Script', 'Pacifico', cursive, sans-serif" 
+            font-size="82" 
+            font-style="italic" 
+            font-weight="bold" 
+            fill="url(#coralGrad)">Cora</text>
+      
+      <!-- "link" in Turquoise Gradient -->
+      <text x="210" y="55" 
+            font-family="'Brush Script MT', 'Dancing Script', 'Segoe Script', 'Pacifico', cursive, sans-serif" 
+            font-size="82" 
+            font-style="italic" 
+            font-weight="bold" 
+            fill="url(#turqGrad)">link</text>
+    </g>
+
+    <!-- Subtitle: Arte & Personalización Caribeña -->
+    <g transform="translate(256, 420)">
+      <text x="0" y="0" 
+            text-anchor="middle" 
+            font-family="system-ui, -apple-system, 'Montserrat', Arial, sans-serif" 
+            font-size="20" 
+            font-weight="800" 
+            letter-spacing="4" 
+            fill="#0B2545">
+        ARTE &amp; PERSONALIZACIÓN <tspan fill="#FF6B35">CARIBEÑA</tspan>
+      </text>
+      <!-- Twin Underlines -->
+      <line x1="-150" y1="12" x2="-20" y2="12" stroke="#1BA7D9" stroke-width="3" stroke-linecap="round" />
+      <line x1="20" y1="12" x2="150" y2="12" stroke="#FF6B35" stroke-width="3" stroke-linecap="round" />
+    </g>
+  </g>
+</svg>
