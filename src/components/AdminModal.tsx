@@ -33,6 +33,7 @@ import {
 } from 'lucide-react';
 import { CoralinkLogo } from './CoralinkLogo';
 import { EditProductModal } from './EditProductModal';
+import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
 import {
   verifyAdminPassword,
   setAdminPassword,
@@ -346,7 +347,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   };
 
   const handleResetToOriginalLogo = () => {
-    setLocalLogoUrl('/LG1.png');
+    setLocalLogoUrl(CORALINK_LOGO_URL);
     if (onResetLogo) {
       onResetLogo();
       setLogoSaveToast(true);
@@ -1454,18 +1455,25 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         <div className="flex gap-3 items-center">
                           {/* Thumbnail */}
                           <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-100 dark:border-slate-800 relative">
-                            {product.image && !product.image.includes('unsplash.com') ? (
+                            {!isReferenceLogo(product.image) ? (
                               <img
                                 src={product.image}
                                 alt={product.title}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {
-                                  (e.target as HTMLImageElement).src = '/logos.png';
+                                  (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
                                 }}
                               />
                             ) : (
-                              <div className="w-full h-full flex items-center justify-center p-1 bg-slate-100 dark:bg-slate-800">
-                                <img src="/logos.png" alt="Coralink" className="w-8 h-8 object-contain opacity-70" />
+                              <div className="w-full h-full flex items-center justify-center p-1 bg-white dark:bg-slate-800">
+                                <img
+                                  src={CORALINK_LOGO_URL}
+                                  alt="Coralink"
+                                  className="w-10 h-10 object-contain"
+                                  onError={(e) => {
+                                    (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
+                                  }}
+                                />
                               </div>
                             )}
                           </div>

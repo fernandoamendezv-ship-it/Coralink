@@ -21,12 +21,13 @@ import { OfflineIndicator } from './components/OfflineIndicator';
 import { Footer } from './components/Footer';
 import { Search, Zap, Sparkles, RefreshCw } from 'lucide-react';
 import { useThemeMode } from './hooks/useThemeMode';
+import { CORALINK_LOGO_URL, isReferenceLogo } from './utils/logoConstants';
 
 export default function App() {
   // Theme mode (Dark / Light)
   const { isDarkMode, toggleTheme } = useThemeMode();
 
-  // Store Logo State (persistent, defaults to user uploaded file /LG1.png)
+  // Store Logo State (persistent, defaults to user uploaded new logo)
   const [storeLogo, setStoreLogo] = useState<string>(() => {
     if (typeof window !== 'undefined') {
       try {
@@ -36,6 +37,7 @@ export default function App() {
           !saved.startsWith('/logo') &&
           saved !== '/logos.png' &&
           saved !== '/logo.png' &&
+          saved !== '/LG1.png' &&
           saved !== '/logo-app.svg' &&
           saved !== '/logo-clean.svg'
         ) {
@@ -45,10 +47,10 @@ export default function App() {
         console.error('Failed to read logo from storage:', err);
       }
     }
-    return '/LG1.png';
+    return CORALINK_LOGO_URL;
   });
 
-  // Ensure any cached previous paths are reset to /LG1.png
+  // Ensure any cached previous paths are reset to the new CORALINK_LOGO_URL
   React.useEffect(() => {
     try {
       const saved = localStorage.getItem('coralink_custom_logo');
@@ -57,11 +59,12 @@ export default function App() {
         (saved.startsWith('/logo') ||
           saved === '/logos.png' ||
           saved === '/logo.png' ||
+          saved === '/LG1.png' ||
           saved === '/logo-app.svg' ||
           saved === '/logo-clean.svg')
       ) {
         localStorage.removeItem('coralink_custom_logo');
-        setStoreLogo('/LG1.png');
+        setStoreLogo(CORALINK_LOGO_URL);
       }
     } catch (e) {
       console.error(e);
@@ -78,7 +81,7 @@ export default function App() {
   };
 
   const handleResetLogo = () => {
-    setStoreLogo('/LG1.png');
+    setStoreLogo(CORALINK_LOGO_URL);
     try {
       localStorage.removeItem('coralink_custom_logo');
     } catch (err) {
@@ -106,10 +109,10 @@ export default function App() {
         if (cached) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            // Strip any leftover unsplash URLs
+            // Strip any leftover unsplash or old logo URLs and set CORALINK_LOGO_URL as reference
             const cleaned = parsed.map((p: Product) => ({
               ...p,
-              image: p.image && !p.image.includes('unsplash.com') ? p.image : '',
+              image: !isReferenceLogo(p.image) ? p.image : CORALINK_LOGO_URL,
             }));
             return cleaned;
           }

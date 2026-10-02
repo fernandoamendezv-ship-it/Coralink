@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Product } from '../types';
 import { X, Star, MessageCircle, ShoppingBag, Check, Sparkles, Shield, Truck, ThumbsUp, Send } from 'lucide-react';
 import { StarRating } from './StarRating';
+import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -106,20 +107,27 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         </button>
 
         {/* Left Column: Image Section */}
-        <div className="md:w-1/2 bg-slate-100 dark:bg-slate-800 relative min-h-[260px] md:min-h-full flex items-center justify-center p-4">
-          {product.image && !product.image.includes('unsplash.com') ? (
+        <div className="md:w-1/2 bg-white dark:bg-slate-900 relative min-h-[260px] md:min-h-full flex items-center justify-center p-6">
+          {!isReferenceLogo(product.image) ? (
             <img
               src={product.image}
               alt={product.title}
               className="w-full h-full max-h-[380px] md:max-h-full object-cover rounded-2xl shadow-inner"
               onError={(e) => {
-                (e.target as HTMLImageElement).src = '/logos.png';
+                (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
               }}
             />
           ) : (
-            <div className="w-full h-full min-h-[240px] flex flex-col items-center justify-center p-6 text-center rounded-2xl bg-gradient-to-br from-slate-200/60 to-slate-100 dark:from-slate-800 dark:to-slate-900 border border-slate-200/80 dark:border-slate-700">
-              <div className="w-24 h-24 rounded-3xl bg-white dark:bg-slate-800 p-3 shadow-md flex items-center justify-center mb-3 border border-slate-200/60 dark:border-slate-700/60">
-                <img src="/logos.png" alt="Coralink" className="w-full h-full object-contain" />
+            <div className="w-full h-full min-h-[260px] flex flex-col items-center justify-center p-6 text-center rounded-2xl bg-white dark:bg-slate-850 border border-slate-100 dark:border-slate-800 shadow-inner">
+              <div className="w-36 h-36 rounded-3xl bg-white dark:bg-slate-800 p-3 shadow-md flex items-center justify-center mb-3 border border-slate-100 dark:border-slate-700">
+                <img
+                  src={CORALINK_LOGO_URL}
+                  alt="Coralink"
+                  className="w-full h-full object-contain"
+                  onError={(e) => {
+                    (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
+                  }}
+                />
               </div>
               <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">{product.title}</h3>
               <p className="text-xs text-[#1BA7D9] font-black uppercase tracking-wider mt-1">Coralink Corn Island</p>

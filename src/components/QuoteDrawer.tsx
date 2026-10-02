@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { CartItem } from '../types';
 import { X, Trash2, MessageCircle, MapPin, User, ShoppingBag } from 'lucide-react';
+import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
 
 interface QuoteDrawerProps {
   isOpen: boolean;
@@ -135,18 +136,25 @@ export const QuoteDrawer: React.FC<QuoteDrawerProps> = ({
                   key={`${item.product.id}-${idx}`}
                   className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex gap-3 relative"
                 >
-                  {item.product.image && !item.product.image.includes('unsplash.com') ? (
+                  {!isReferenceLogo(item.product.image) ? (
                     <img
                       src={item.product.image}
                       alt={item.product.title}
                       className="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-200 dark:bg-slate-700"
                       onError={(e) => {
-                        (e.target as HTMLImageElement).src = '/logos.png';
+                        (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
                       }}
                     />
                   ) : (
-                    <div className="w-16 h-16 rounded-xl bg-slate-200 dark:bg-slate-700 p-2 flex items-center justify-center shrink-0">
-                      <img src="/logos.png" alt="Coralink" className="w-full h-full object-contain" />
+                    <div className="w-16 h-16 rounded-xl bg-white dark:bg-slate-800 p-2 border border-slate-200 dark:border-slate-700 flex items-center justify-center shrink-0">
+                      <img
+                        src={CORALINK_LOGO_URL}
+                        alt="Coralink"
+                        className="w-full h-full object-contain"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
+                        }}
+                      />
                     </div>
                   )}
 

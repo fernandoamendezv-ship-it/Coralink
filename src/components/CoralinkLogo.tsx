@@ -1,4 +1,5 @@
 import React from 'react';
+import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL } from '../utils/logoConstants';
 
 interface CoralinkLogoProps {
   src?: string;
@@ -22,7 +23,7 @@ export const CoralinkLogo: React.FC<CoralinkLogoProps> = ({
   };
 
   const dimClass = sizeMap[size];
-  const logoSource = src || '/LG1.png';
+  const logoSource = src || CORALINK_LOGO_URL;
 
   return (
     <div className={`inline-flex items-center justify-center select-none ${className}`}>
@@ -31,7 +32,7 @@ export const CoralinkLogo: React.FC<CoralinkLogoProps> = ({
         alt="Coralink"
         className={`${dimClass} object-contain transition-transform duration-300 hover:scale-[1.02]`}
         onError={(e) => {
-          (e.target as HTMLImageElement).src = '/LG1.png';
+          (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
         }}
         loading="eager"
       />

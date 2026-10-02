@@ -18,6 +18,7 @@ import {
   Layers,
 } from 'lucide-react';
 import { verifyAdminPassword } from '../utils/adminSecurity';
+import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -93,8 +94,8 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       setSubCategory(product.subCategory || '');
       setPrice(product.price || 0);
       setOriginalPrice(product.originalPrice || 0);
-      // Clean up reference unsplash images so user has a fresh empty field
-      const cleanImg = product.image && !product.image.includes('unsplash.com') ? product.image : '';
+      // Clean up reference logo URLs so user has a fresh empty field ready for a new link
+      const cleanImg = !isReferenceLogo(product.image) ? product.image : '';
       setImage(cleanImg);
       setDescription(product.description || '');
       setInStock(product.inStock !== false);
@@ -140,7 +141,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     e.preventDefault();
     if (!title.trim()) return;
 
-    const cleanSavedImage = image && !image.includes('unsplash.com') ? image.trim() : '';
+    const cleanSavedImage = image && !isReferenceLogo(image) ? image.trim() : CORALINK_LOGO_URL;
 
     const updatedProduct: Product = {
       ...product,
@@ -401,20 +402,26 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
                   {/* Preview Thumbnail */}
                   <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 aspect-square max-w-[140px] mx-auto w-full overflow-hidden relative group">
-                    {image && !image.includes('unsplash.com') ? (
+                    {!isReferenceLogo(image) ? (
                       <img
                         src={image}
                         alt="Vista previa"
                         className="w-full h-full object-cover rounded-xl"
                         onError={(e) => {
-                          (e.target as HTMLImageElement).src = '/logos.png';
+                          (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
                         }}
                       />
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center text-slate-400">
-                        <ImageIcon className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-1" />
-                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Sin foto aún</span>
-                        <span className="text-[8px] text-slate-400">Pega un enlace abajo</span>
+                      <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center bg-white dark:bg-slate-900 rounded-xl">
+                        <img
+                          src={CORALINK_LOGO_URL}
+                          alt="Logo de referencia"
+                          className="w-16 h-16 object-contain mb-1"
+                          onError={(e) => {
+                            (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
+                          }}
+                        />
+                        <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400">Logo de Referencia</span>
                       </div>
                     )}
                     <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 mt-1 block">
