@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useMemo } from 'react';
 import { Product, CartItem, MainCategory } from './types';
-import { INITIAL_PRODUCTS } from './data/initialProducts';
+import { INITIAL_PRODUCTS, CATALOG_VERSION } from './data/initialProducts';
 import { usePWAInstall } from './hooks/usePWAInstall';
 import { Header } from './components/Header';
 import { CategoryNav } from './components/CategoryNav';
@@ -19,7 +19,7 @@ import { PWAStatusModal } from './components/PWAStatusModal';
 import { BottomNavBar } from './components/BottomNavBar';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { Footer } from './components/Footer';
-import { Search, Zap } from 'lucide-react';
+import { Search, Zap, Sparkles, RefreshCw } from 'lucide-react';
 import { useThemeMode } from './hooks/useThemeMode';
 
 export default function App() {
@@ -86,14 +86,23 @@ export default function App() {
     }
   };
 
-  // PWA Install hook
-  const { isInstallable, isInstalled, isIOS, install, swStatus, checkSW } = usePWAInstall();
+  // PWA Install & Update hook
+  const { isInstallable, isInstalled, isIOS, install, swStatus, checkSW, hasUpdate, isUpdating, updateApp } = usePWAInstall();
 
-  // Products State with LocalStorage Persistence
+  // Products State with LocalStorage Persistence & Automatic Version Invalidation
   const [products, setProducts] = useState<Product[]>(() => {
     if (typeof window !== 'undefined') {
       try {
+        const cachedVersion = localStorage.getItem('coralink_catalog_version');
         const cached = localStorage.getItem('coralink_custom_products');
+
+        // When code version changes (e.g. from GitHub push to Vercel), automatically update phone's storage!
+        if (cachedVersion !== CATALOG_VERSION) {
+          localStorage.setItem('coralink_catalog_version', CATALOG_VERSION);
+          localStorage.setItem('coralink_custom_products', JSON.stringify(INITIAL_PRODUCTS));
+          return INITIAL_PRODUCTS;
+        }
+
         if (cached) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed) && parsed.length > 0) {
@@ -442,6 +451,8 @@ export default function App() {
           isDarkMode={isDarkMode}
           onToggleTheme={toggleTheme}
           logoUrl={storeLogo}
+          onForceSync={updateApp}
+          isUpdating={isUpdating}
         />
 
         {/* Category Pills: Equalized / averaged width, with subcategories hidden when 'Todo' is active */}
@@ -565,7 +576,7 @@ export default function App() {
       </main>
 
       {/* Brand Logo, Title, Slogan and Description at the End of Page */}
-      <Footer onOpenAdmin={handleOpenAdmin} logoUrl={storeLogo} />
+      <Footer onOpenAdmin={handleOpenAdmin} logoUrl={storeLogo} onForceSync={updateApp} />
 
       {/* FIXED BOTTOM NAVIGATION BAR: Inicio, Buscar, Favoritos, Pedido */}
       <BottomNavBar
@@ -623,6 +634,8 @@ export default function App() {
         logoUrl={storeLogo}
         onUpdateLogo={handleUpdateLogo}
         onResetLogo={handleResetLogo}
+        onForceSync={updateApp}
+        isUpdating={isUpdating}
       />
 
       <PWAStatusModal
@@ -635,6 +648,28 @@ export default function App() {
         onInstall={install}
         onRefreshSW={checkSW}
       />
+
+      {/* PWA Update Banner - Floating alert when Vercel/GitHub has a new version */}
+      {hasUpdate && (
+        <div className="fixed bottom-20 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 sm:max-w-sm z-50 bg-[#0B2545] text-white p-3.5 rounded-2xl shadow-2xl border border-[#1BA7D9]/50 flex items-center justify-between gap-3 animate-pulse">
+          <div className="flex items-center gap-2.5">
+            <div className="w-8 h-8 rounded-xl bg-[#1BA7D9]/20 flex items-center justify-center text-[#1BA7D9] shrink-0">
+              <Sparkles className="w-4 h-4 text-[#1BA7D9]" />
+            </div>
+            <div>
+              <p className="text-xs font-bold leading-tight">¡Nueva versión disponible!</p>
+              <p className="text-[11px] text-slate-300">Hay nuevos productos e imágenes listas.</p>
+            </div>
+          </div>
+          <button
+            onClick={updateApp}
+            disabled={isUpdating}
+            className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#1BA7D9] to-[#FF6B35] text-white text-xs font-black shadow-md hover:opacity-90 active:scale-95 transition-all shrink-0 cursor-pointer"
+          >
+            {isUpdating ? 'Actualizando...' : 'Actualizar'}
+          </button>
+        </div>
+      )}
 
       {/* PWA Offline Network Toast */}
       <OfflineIndicator />

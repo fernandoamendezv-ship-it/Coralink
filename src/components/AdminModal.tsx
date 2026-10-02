@@ -28,6 +28,8 @@ import {
   ArrowLeft,
   Copy,
   HelpCircle,
+  RefreshCw,
+  Download,
 } from 'lucide-react';
 import { CoralinkLogo } from './CoralinkLogo';
 import { EditProductModal } from './EditProductModal';
@@ -52,6 +54,8 @@ interface AdminModalProps {
   logoUrl?: string;
   onUpdateLogo?: (newLogoUrl: string) => void;
   onResetLogo?: () => void;
+  onForceSync?: () => void;
+  isUpdating?: boolean;
 }
 
 export const AdminModal: React.FC<AdminModalProps> = ({
@@ -66,6 +70,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   logoUrl = '/LG1.png',
   onUpdateLogo,
   onResetLogo,
+  onForceSync,
+  isUpdating = false,
 }) => {
   const [activeTab, setActiveTab] = useState<'products' | 'logo' | 'security'>('products');
   const [localProducts, setLocalProducts] = useState<Product[]>(products);
@@ -117,6 +123,32 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [localLogoUrl, setLocalLogoUrl] = useState(logoUrl);
   const [logoSaveToast, setLogoSaveToast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const [copiedJson, setCopiedJson] = useState(false);
+
+  const handleExportJson = () => {
+    try {
+      const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(localProducts, null, 2));
+      const downloadAnchor = document.createElement('a');
+      downloadAnchor.setAttribute('href', dataStr);
+      downloadAnchor.setAttribute('download', `coralink_productos_${new Date().toISOString().slice(0, 10)}.json`);
+      document.body.appendChild(downloadAnchor);
+      downloadAnchor.click();
+      downloadAnchor.remove();
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  const handleCopyCodeJson = () => {
+    try {
+      navigator.clipboard.writeText(JSON.stringify(localProducts, null, 2));
+      setCopiedJson(true);
+      setTimeout(() => setCopiedJson(false), 2500);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // New product initial state
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
@@ -443,7 +475,21 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   </button>
                 </form>
 
-                <div className="mt-6 pt-5 border-t border-slate-100 dark:border-slate-700/60 flex flex-col gap-2">
+                {onForceSync && (
+                  <div className="mt-4 pt-3 border-t border-slate-100 dark:border-slate-700/60">
+                    <button
+                      type="button"
+                      onClick={onForceSync}
+                      disabled={isUpdating}
+                      className="w-full py-2.5 px-3 rounded-2xl border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-950/40 text-sky-800 dark:text-sky-200 text-xs font-bold hover:bg-sky-100 flex items-center justify-center gap-2 transition-all cursor-pointer active:scale-98"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? 'animate-spin' : ''}`} />
+                      <span>{isUpdating ? 'Sincronizando...' : '🔄 Sincronizar y Refrescar Fotos en este Teléfono'}</span>
+                    </button>
+                  </div>
+                )}
+
+                <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-700/60 flex flex-col gap-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -762,13 +808,43 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
               {/* Action buttons on the right */}
               {activeTab === 'products' && (
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-1.5">
+                  {onForceSync && (
+                    <button
+                      onClick={onForceSync}
+                      disabled={isUpdating}
+                      className="px-2.5 py-1.5 rounded-xl border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Refrescar caché del teléfono y forzar sincronización"
+                    >
+                      <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? 'animate-spin' : ''}`} />
+                      <span className="hidden sm:inline">Sincronizar Teléfono</span>
+                    </button>
+                  )}
+
+                  <button
+                    onClick={handleExportJson}
+                    className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                    title="Descargar copia de seguridad en archivo .json"
+                  >
+                    <Download className="w-3.5 h-3.5 text-slate-500" />
+                    <span className="hidden sm:inline">Exportar JSON</span>
+                  </button>
+
+                  <button
+                    onClick={handleCopyCodeJson}
+                    className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                    title="Copiar código JSON para subirlo a GitHub"
+                  >
+                    {copiedJson ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
+                    <span className="hidden sm:inline">{copiedJson ? '¡Copiado!' : 'Copiar JSON'}</span>
+                  </button>
+
                   <button
                     onClick={() => setShowAddForm(!showAddForm)}
                     className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
                   >
                     <Plus className="w-3.5 h-3.5" />
-                    <span>{showAddForm ? 'Cerrar Formulario' : 'Nuevo Producto'}</span>
+                    <span>{showAddForm ? 'Cerrar' : 'Nuevo'}</span>
                   </button>
 
                   <button
@@ -1110,6 +1186,53 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             ) : (
               /* TAB 3: PRODUCTOS Y PRECIOS */
               <div className="flex-1 flex flex-col min-h-0">
+                {/* Dedicated GitHub, Vercel & Phone Sync Card */}
+                <div className="p-3 sm:p-4 bg-gradient-to-r from-sky-500/10 via-emerald-500/10 to-amber-500/10 border-b border-sky-200 dark:border-sky-900/60 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-[#FF6B35]" />
+                      <span className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                        Sincronización con GitHub, Vercel y Teléfonos
+                      </span>
+                    </div>
+                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl">
+                      Para que los cambios de fotos o precios hechos en tu PC se apliquen en los teléfonos instalados, usa estos botones para copiar o exportar tu catálogo a GitHub, o pulsa «Sincronizar Teléfono» para refrescar el dispositivo actual.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 shrink-0">
+                    {onForceSync && (
+                      <button
+                        onClick={onForceSync}
+                        disabled={isUpdating}
+                        className="px-3 py-2 rounded-xl bg-[#1BA7D9] hover:bg-[#158db8] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                        title="Refrescar caché del teléfono y cargar últimas fotos"
+                      >
+                        <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? 'animate-spin' : ''}`} />
+                        <span>{isUpdating ? 'Sincronizando...' : '🔄 Sincronizar Teléfono'}</span>
+                      </button>
+                    )}
+
+                    <button
+                      onClick={handleCopyCodeJson}
+                      className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                      title="Copiar JSON de productos al portapapeles para actualizar initialProducts.ts"
+                    >
+                      {copiedJson ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-300" />}
+                      <span>{copiedJson ? '¡Copiado!' : '📋 Copiar JSON'}</span>
+                    </button>
+
+                    <button
+                      onClick={handleExportJson}
+                      className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                      title="Descargar copia de seguridad en archivo .json"
+                    >
+                      <Download className="w-3.5 h-3.5" />
+                      <span>💾 Exportar JSON</span>
+                    </button>
+                  </div>
+                </div>
+
                 {/* Search & Filter Bar */}
                 <div className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0">
                   <div className="flex items-center gap-2 flex-1 min-w-[240px]">

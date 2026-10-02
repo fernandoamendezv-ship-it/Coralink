@@ -14,6 +14,7 @@ import {
   Sparkles,
   Share2,
   Check,
+  RefreshCw,
 } from 'lucide-react';
 import { CoralinkLogo } from './CoralinkLogo';
 
@@ -31,6 +32,8 @@ interface HeaderProps {
   isDarkMode: boolean;
   onToggleTheme: () => void;
   logoUrl?: string;
+  onForceSync?: () => void;
+  isUpdating?: boolean;
 }
 
 // Window declaration for cross-browser Web Speech API
@@ -55,6 +58,8 @@ export const Header: React.FC<HeaderProps> = ({
   isDarkMode,
   onToggleTheme,
   logoUrl,
+  onForceSync,
+  isUpdating = false,
 }) => {
   const [isListening, setIsListening] = useState(false);
   const [speechSupported, setSpeechSupported] = useState(true);
@@ -362,6 +367,34 @@ export const Header: React.FC<HeaderProps> = ({
                       <Check className="w-3.5 h-3.5 shrink-0 text-emerald-600" />
                       <span className="text-[11px] leading-snug">{shareToast}</span>
                     </div>
+                  )}
+
+                  {/* Sincronizar Catálogo (Forzar Actualización de Fotos) */}
+                  {onForceSync && (
+                    <button
+                      onClick={() => {
+                        setIsMenuOpen(false);
+                        onForceSync();
+                      }}
+                      disabled={isUpdating}
+                      className="w-full p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors flex items-center gap-2.5 text-left cursor-pointer group"
+                      title="Refrescar fotos y descargar la versión más reciente"
+                    >
+                      <div className="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-950/60 flex items-center justify-center text-[#1BA7D9] group-hover:rotate-180 transition-transform duration-500">
+                        <RefreshCw className={`w-4 h-4 ${isUpdating ? 'animate-spin' : ''}`} />
+                      </div>
+                      <div>
+                        <div className="text-xs font-bold text-slate-800 dark:text-white leading-tight flex items-center gap-1.5">
+                          <span>Sincronizar Catálogo</span>
+                          <span className="text-[9px] px-1.5 py-0.2 rounded-full bg-sky-100 dark:bg-sky-900/60 text-sky-700 dark:text-sky-300 font-black">
+                            {isUpdating ? 'Cargando...' : 'Actualizar'}
+                          </span>
+                        </div>
+                        <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
+                          Descargar fotos y datos más recientes
+                        </div>
+                      </div>
+                    </button>
                   )}
 
                   {/* Panel de Administrador Option */}

@@ -1,5 +1,8 @@
 import { Product } from '../types';
 
+// Update this version whenever initialProducts are changed so that installed PWAs on phones immediately update their local storage!
+export const CATALOG_VERSION = '2026.10.02.1';
+
 export const INITIAL_PRODUCTS: Product[] = [
   // ==========================================
   // CATEGORÍA: PERSONALIZADOS -> FOTOREGALOS

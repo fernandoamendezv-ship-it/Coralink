@@ -1,13 +1,14 @@
 import React from 'react';
 import { CoralinkLogo } from './CoralinkLogo';
-import { MapPin, Heart, Sparkles, MessageCircle } from 'lucide-react';
+import { MapPin, Heart, Sparkles, MessageCircle, RefreshCw } from 'lucide-react';
 
 interface FooterProps {
   onOpenAdmin: () => void;
   logoUrl?: string;
+  onForceSync?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, logoUrl }) => {
+export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, logoUrl, onForceSync }) => {
   return (
     <footer className="bg-[#0B2545] text-white border-t border-slate-800 pt-10 pb-20 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto flex flex-col items-center text-center space-y-5">
@@ -39,7 +40,7 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, logoUrl }) => {
           </div>
         </div>
 
-        {/* Contact WhatsApp, Location & Admin */}
+        {/* Contact WhatsApp, Location, Admin & Sync */}
         <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs pt-2">
           <a
             href="https://wa.me/50582045433"
@@ -62,6 +63,20 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, logoUrl }) => {
             Panel de Administrador
           </button>
         </div>
+
+        {/* PROMINENT SYNC BADGE / BUTTON IN FOOTER */}
+        {onForceSync && (
+          <div className="pt-1">
+            <button
+              onClick={onForceSync}
+              className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-[#1BA7D9]/20 to-[#FF6B35]/20 hover:from-[#1BA7D9]/30 hover:to-[#FF6B35]/30 text-white border border-[#1BA7D9]/40 text-xs font-bold transition-all shadow-md cursor-pointer active:scale-95"
+              title="Actualizar catálogo y limpiar caché del navegador"
+            >
+              <RefreshCw className="w-4 h-4 text-[#1BA7D9]" />
+              <span>🔄 Sincronizar Catálogo (Refrescar Fotos)</span>
+            </button>
+          </div>
+        )}
 
         {/* Copyright & "Hecho con ❤️ para el isleño" as requested */}
         <div className="pt-4 border-t border-slate-800/80 w-full text-[11px] text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">
