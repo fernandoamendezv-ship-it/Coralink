@@ -106,7 +106,12 @@ export default function App() {
         if (cached) {
           const parsed = JSON.parse(cached);
           if (Array.isArray(parsed) && parsed.length > 0) {
-            return parsed;
+            // Strip any leftover unsplash URLs
+            const cleaned = parsed.map((p: Product) => ({
+              ...p,
+              image: p.image && !p.image.includes('unsplash.com') ? p.image : '',
+            }));
+            return cleaned;
           }
         }
       } catch (err) {

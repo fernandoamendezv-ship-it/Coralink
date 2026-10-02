@@ -93,7 +93,9 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       setSubCategory(product.subCategory || '');
       setPrice(product.price || 0);
       setOriginalPrice(product.originalPrice || 0);
-      setImage(product.image || '');
+      // Clean up reference unsplash images so user has a fresh empty field
+      const cleanImg = product.image && !product.image.includes('unsplash.com') ? product.image : '';
+      setImage(cleanImg);
       setDescription(product.description || '');
       setInStock(product.inStock !== false);
       setFeatured(!!product.featured);
@@ -138,6 +140,8 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     e.preventDefault();
     if (!title.trim()) return;
 
+    const cleanSavedImage = image && !image.includes('unsplash.com') ? image.trim() : '';
+
     const updatedProduct: Product = {
       ...product,
       title: title.trim(),
@@ -145,7 +149,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       subCategory: subCategory.trim() || 'General',
       price: Math.max(0, Number(price) || 0),
       originalPrice: originalPrice > 0 ? Number(originalPrice) : undefined,
-      image: image.trim() || product.image,
+      image: cleanSavedImage,
       description: description.trim(),
       inStock,
       featured,
@@ -397,15 +401,22 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
                   {/* Preview Thumbnail */}
                   <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 aspect-square max-w-[140px] mx-auto w-full overflow-hidden relative group">
-                    <img
-                      src={image}
-                      alt="Vista previa"
-                      className="w-full h-full object-cover rounded-xl"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src =
-                          'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600&auto=format&fit=crop&q=80';
-                      }}
-                    />
+                    {image && !image.includes('unsplash.com') ? (
+                      <img
+                        src={image}
+                        alt="Vista previa"
+                        className="w-full h-full object-cover rounded-xl"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = '/logos.png';
+                        }}
+                      />
+                    ) : (
+                      <div className="w-full h-full flex flex-col items-center justify-center p-2 text-center text-slate-400">
+                        <ImageIcon className="w-8 h-8 text-slate-300 dark:text-slate-600 mb-1" />
+                        <span className="text-[10px] font-bold text-slate-500 dark:text-slate-400">Sin foto aún</span>
+                        <span className="text-[8px] text-slate-400">Pega un enlace abajo</span>
+                      </div>
+                    )}
                     <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 mt-1 block">
                       Vista previa
                     </span>
@@ -437,16 +448,53 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
 
                     {/* Method 2: Direct URL */}
                     <div>
-                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">
-                        2. O escribir / pegar enlace URL directo:
-                      </span>
-                      <input
-                        type="text"
-                        value={image}
-                        onChange={(e) => setImage(e.target.value)}
-                        placeholder="https://images.unsplash.com/..."
-                        className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] outline-none font-mono"
-                      />
+                      <div className="flex items-center justify-between mb-1">
+                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
+                          2. O escribir / pegar enlace URL directo:
+                        </span>
+                        {image && (
+                          <button
+                            type="button"
+                            onClick={() => setImage('')}
+                            className="text-[11px] font-bold text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 flex items-center gap-1 cursor-pointer transition-colors"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                            <span>Borrar enlace</span>
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <input
+                          type="text"
+                          value={image}
+                          onChange={(e) => setImage(e.target.value)}
+                          placeholder="Pega aquí el enlace nuevo (ej: https://i.postimg.cc/tu-foto.jpg)"
+                          className="w-full pl-3 pr-9 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] outline-none font-mono"
+                        />
+                        {image && (
+                          <button
+                            type="button"
+                            onClick={() => setImage('')}
+                            className="absolute right-2.5 top-2.5 p-1 rounded-full text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                            title="Limpiar campo"
+                          >
+                            <X className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Helpful Tip */}
+                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 leading-snug space-y-1">
+                      <p className="font-bold">
+                        💡 ¿Cómo hacer que las fotos cargadas se vean en los teléfonos?
+                      </p>
+                      <p>
+                        • <strong>Opción 1 (Directa para todos los clientes):</strong> Sube tu foto a un servidor público gratuito como <a href="https://postimages.org" target="_blank" rel="noreferrer" className="underline font-bold text-sky-600 dark:text-sky-400">postimages.org</a> o <a href="https://imgbb.com" target="_blank" rel="noreferrer" className="underline font-bold text-sky-600 dark:text-sky-400">imgbb.com</a> y pega aquí el enlace directo (.jpg/.png).
+                      </p>
+                      <p>
+                        • <strong>Opción 2 (Entre tus dispositivos):</strong> Si seleccionas un archivo de tu PC, en el panel pulsa <strong>«Exportar JSON»</strong> y en tu teléfono pulsa <strong>«Importar JSON»</strong>.
+                      </p>
                     </div>
                   </div>
                 </div>

@@ -135,11 +135,20 @@ export const QuoteDrawer: React.FC<QuoteDrawerProps> = ({
                   key={`${item.product.id}-${idx}`}
                   className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800 border border-slate-200/80 dark:border-slate-700 flex gap-3 relative"
                 >
-                  <img
-                    src={item.product.image}
-                    alt={item.product.title}
-                    className="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-200 dark:bg-slate-700"
-                  />
+                  {item.product.image && !item.product.image.includes('unsplash.com') ? (
+                    <img
+                      src={item.product.image}
+                      alt={item.product.title}
+                      className="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-200 dark:bg-slate-700"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = '/logos.png';
+                      }}
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-xl bg-slate-200 dark:bg-slate-700 p-2 flex items-center justify-center shrink-0">
+                      <img src="/logos.png" alt="Coralink" className="w-full h-full object-contain" />
+                    </div>
+                  )}
 
                   <div className="flex-1 min-w-0 pr-6">
                     <h4 className="text-xs font-bold text-[#0B2545] dark:text-white truncate">

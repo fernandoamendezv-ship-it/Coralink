@@ -491,19 +491,18 @@ export const Header: React.FC<HeaderProps> = ({
               )}
             </div>
 
-            {/* Quick Dark Mode Icon Button in Header */}
-            <button
-              onClick={onToggleTheme}
-              className="p-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white transition-all cursor-pointer flex items-center justify-center"
-              title={isDarkMode ? 'Cambiar a Modo Claro' : 'Cambiar a Modo Oscuro'}
-              aria-label={isDarkMode ? 'Cambiar a tema claro' : 'Cambiar a tema oscuro'}
-            >
-              {isDarkMode ? (
-                <Sun className="w-5 h-5 text-amber-300 animate-in spin-in-180 duration-300" />
-              ) : (
-                <Moon className="w-5 h-5 text-slate-200 animate-in spin-in-180 duration-300" />
-              )}
-            </button>
+            {/* Synchronization Icon Button in Header Bar (Replaced Dark Mode as requested) */}
+            {onForceSync && (
+              <button
+                onClick={onForceSync}
+                disabled={isUpdating}
+                className="p-2 rounded-xl bg-white/10 hover:bg-white/20 active:scale-95 text-white transition-all cursor-pointer flex items-center justify-center relative group"
+                title="Sincronizar catálogo y actualizar fotos"
+                aria-label="Sincronizar catálogo y actualizar fotos"
+              >
+                <RefreshCw className={`w-5 h-5 text-[#1BA7D9] ${isUpdating ? 'animate-spin' : 'group-hover:rotate-180 transition-transform duration-500'}`} />
+              </button>
+            )}
 
             {/* Favorites Button */}
             <button

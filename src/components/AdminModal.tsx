@@ -123,15 +123,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [localLogoUrl, setLocalLogoUrl] = useState(logoUrl);
   const [logoSaveToast, setLogoSaveToast] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const importFileRef = useRef<HTMLInputElement | null>(null);
 
   const [copiedJson, setCopiedJson] = useState(false);
+  const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
+  const [showSyncBanner, setShowSyncBanner] = useState(true);
 
   const handleExportJson = () => {
     try {
       const dataStr = 'data:text/json;charset=utf-8,' + encodeURIComponent(JSON.stringify(localProducts, null, 2));
       const downloadAnchor = document.createElement('a');
       downloadAnchor.setAttribute('href', dataStr);
-      downloadAnchor.setAttribute('download', `coralink_productos_${new Date().toISOString().slice(0, 10)}.json`);
+      downloadAnchor.setAttribute('download', `coralink_catalogo_fotos_${new Date().toISOString().slice(0, 10)}.json`);
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
@@ -150,6 +153,32 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
   };
 
+  const handleImportJsonFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const content = event.target?.result as string;
+        const parsed = JSON.parse(content);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setLocalProducts(parsed);
+          onSaveProducts(parsed);
+          setImportSuccessMsg(`¡Catálogo importado! Se cargaron ${parsed.length} productos con sus fotos.`);
+          setTimeout(() => setImportSuccessMsg(null), 4000);
+        } else {
+          alert('El archivo no contiene un catálogo de productos válido.');
+        }
+      } catch (err) {
+        console.error('Failed to import JSON file:', err);
+        alert('Error al leer el archivo. Asegúrate de que sea un archivo JSON válido.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
   // New product initial state
   const [newProduct, setNewProduct] = useState<Partial<Product>>({
     title: '',
@@ -157,7 +186,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     subCategory: 'Fotoregalos',
     price: 200,
     originalPrice: 250,
-    image: 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600&auto=format&fit=crop&q=80',
+    image: '',
     description: 'Producto artesanal caribeño de alta calidad personalizado en Nicaragua.',
     rating: 5.0,
     reviewsCount: 12,
@@ -349,7 +378,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       subCategory: newProduct.subCategory || 'Fotoregalos',
       price: Number(newProduct.price) || 150,
       originalPrice: Number(newProduct.originalPrice) || Number(newProduct.price) + 50,
-      image: newProduct.image || 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600&auto=format&fit=crop&q=80',
+      image: newProduct.image && !newProduct.image.includes('unsplash.com') ? newProduct.image : '',
       description: newProduct.description || 'Detalle exclusivo hecho a mano en Corn Island.',
       rating: 5.0,
       reviewsCount: 1,
@@ -831,6 +860,15 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   </button>
 
                   <button
+                    onClick={() => importFileRef.current?.click()}
+                    className="px-2.5 py-1.5 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                    title="Importar catálogo y fotos desde archivo .json"
+                  >
+                    <Upload className="w-3.5 h-3.5 text-purple-500" />
+                    <span className="hidden sm:inline">Importar JSON</span>
+                  </button>
+
+                  <button
                     onClick={handleCopyCodeJson}
                     className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
                     title="Copiar código JSON para subirlo a GitHub"
@@ -1186,52 +1224,14 @@ export const AdminModal: React.FC<AdminModalProps> = ({
             ) : (
               /* TAB 3: PRODUCTOS Y PRECIOS */
               <div className="flex-1 flex flex-col min-h-0">
-                {/* Dedicated GitHub, Vercel & Phone Sync Card */}
-                <div className="p-3 sm:p-4 bg-gradient-to-r from-sky-500/10 via-emerald-500/10 to-amber-500/10 border-b border-sky-200 dark:border-sky-900/60 flex flex-col md:flex-row md:items-center justify-between gap-3 shrink-0">
-                  <div className="space-y-1">
-                    <div className="flex items-center gap-2">
-                      <Sparkles className="w-4 h-4 text-[#FF6B35]" />
-                      <span className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">
-                        Sincronización con GitHub, Vercel y Teléfonos
-                      </span>
-                    </div>
-                    <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl">
-                      Para que los cambios de fotos o precios hechos en tu PC se apliquen en los teléfonos instalados, usa estos botones para copiar o exportar tu catálogo a GitHub, o pulsa «Sincronizar Teléfono» para refrescar el dispositivo actual.
-                    </p>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2 shrink-0">
-                    {onForceSync && (
-                      <button
-                        onClick={onForceSync}
-                        disabled={isUpdating}
-                        className="px-3 py-2 rounded-xl bg-[#1BA7D9] hover:bg-[#158db8] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                        title="Refrescar caché del teléfono y cargar últimas fotos"
-                      >
-                        <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? 'animate-spin' : ''}`} />
-                        <span>{isUpdating ? 'Sincronizando...' : '🔄 Sincronizar Teléfono'}</span>
-                      </button>
-                    )}
-
-                    <button
-                      onClick={handleCopyCodeJson}
-                      className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                      title="Copiar JSON de productos al portapapeles para actualizar initialProducts.ts"
-                    >
-                      {copiedJson ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-300" />}
-                      <span>{copiedJson ? '¡Copiado!' : '📋 Copiar JSON'}</span>
-                    </button>
-
-                    <button
-                      onClick={handleExportJson}
-                      className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                      title="Descargar copia de seguridad en archivo .json"
-                    >
-                      <Download className="w-3.5 h-3.5" />
-                      <span>💾 Exportar JSON</span>
-                    </button>
-                  </div>
-                </div>
+                {/* Hidden input for importing JSON */}
+                <input
+                  ref={importFileRef}
+                  type="file"
+                  accept=".json,application/json"
+                  className="hidden"
+                  onChange={handleImportJsonFile}
+                />
 
                 {/* Search & Filter Bar */}
                 <div className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0">
@@ -1368,8 +1368,83 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   </form>
                 )}
 
-                {/* Products Grid List */}
-                <div className="flex-1 overflow-y-auto p-3 sm:p-4">
+                {/* Products Grid List & Scrollable Sync Card */}
+                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4">
+                  {/* Dedicated GitHub, Vercel & Phone Sync Card (Scrolls with products so it hides when scrolling down) */}
+                  {showSyncBanner && (
+                    <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-sky-500/10 via-emerald-500/10 to-amber-500/10 border border-sky-200 dark:border-sky-900/60 flex flex-col md:flex-row md:items-center justify-between gap-3 relative transition-all">
+                      <div className="space-y-1 pr-7">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-4 h-4 text-[#FF6B35]" />
+                          <span className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">
+                            Sincronización con GitHub, Vercel y Teléfonos
+                          </span>
+                        </div>
+                        <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl">
+                          Para que los cambios de fotos o precios hechos en tu PC se apliquen en los teléfonos instalados, usa estos botones para copiar o exportar tu catálogo a GitHub, o pulsa «Sincronizar Teléfono» para refrescar el dispositivo actual.
+                        </p>
+                      </div>
+
+                      <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        {onForceSync && (
+                          <button
+                            onClick={onForceSync}
+                            disabled={isUpdating}
+                            className="px-3 py-2 rounded-xl bg-[#1BA7D9] hover:bg-[#158db8] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                            title="Refrescar caché del teléfono y cargar últimas fotos"
+                          >
+                            <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? 'animate-spin' : ''}`} />
+                            <span>{isUpdating ? 'Sincronizando...' : '🔄 Sincronizar Teléfono'}</span>
+                          </button>
+                        )}
+
+                        <button
+                          onClick={handleCopyCodeJson}
+                          className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                          title="Copiar JSON de productos al portapapeles para actualizar initialProducts.ts"
+                        >
+                          {copiedJson ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-300" />}
+                          <span>{copiedJson ? '¡Copiado!' : '📋 Copiar JSON'}</span>
+                        </button>
+
+                        <button
+                          onClick={handleExportJson}
+                          className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                          title="Descargar copia de seguridad con fotos en archivo .json"
+                        >
+                          <Download className="w-3.5 h-3.5" />
+                          <span>💾 Exportar JSON</span>
+                        </button>
+
+                        <button
+                          onClick={() => importFileRef.current?.click()}
+                          className="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                          title="Importar catálogo con fotos guardadas desde archivo JSON"
+                        >
+                          <Upload className="w-3.5 h-3.5" />
+                          <span>📂 Importar JSON</span>
+                        </button>
+                      </div>
+
+                      {/* Close button to dismiss banner */}
+                      <button
+                        type="button"
+                        onClick={() => setShowSyncBanner(false)}
+                        className="absolute top-2.5 right-2.5 p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
+                        title="Ocultar este aviso"
+                      >
+                        <X className="w-4 h-4" />
+                      </button>
+                    </div>
+                  )}
+
+                  {importSuccessMsg && (
+                    <div className="w-full p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
+                      <Check className="w-4 h-4 text-emerald-600 shrink-0" />
+                      <span>{importSuccessMsg}</span>
+                    </div>
+                  )}
+
                   <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
                     {filteredProducts.map((product) => (
                       <div
@@ -1379,11 +1454,20 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         <div className="flex gap-3 items-center">
                           {/* Thumbnail */}
                           <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-100 dark:border-slate-800 relative">
-                            <img
-                              src={product.image}
-                              alt={product.title}
-                              className="w-full h-full object-cover"
-                            />
+                            {product.image && !product.image.includes('unsplash.com') ? (
+                              <img
+                                src={product.image}
+                                alt={product.title}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = '/logos.png';
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center p-1 bg-slate-100 dark:bg-slate-800">
+                                <img src="/logos.png" alt="Coralink" className="w-8 h-8 object-contain opacity-70" />
+                              </div>
+                            )}
                           </div>
 
                           {/* Info */}

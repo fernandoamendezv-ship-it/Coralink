@@ -107,11 +107,24 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
         {/* Left Column: Image Section */}
         <div className="md:w-1/2 bg-slate-100 dark:bg-slate-800 relative min-h-[260px] md:min-h-full flex items-center justify-center p-4">
-          <img
-            src={product.image}
-            alt={product.title}
-            className="w-full h-full max-h-[380px] md:max-h-full object-cover rounded-2xl shadow-inner"
-          />
+          {product.image && !product.image.includes('unsplash.com') ? (
+            <img
+              src={product.image}
+              alt={product.title}
+              className="w-full h-full max-h-[380px] md:max-h-full object-cover rounded-2xl shadow-inner"
+              onError={(e) => {
+                (e.target as HTMLImageElement).src = '/logos.png';
+              }}
+            />
+          ) : (
+            <div className="w-full h-full min-h-[240px] flex flex-col items-center justify-center p-6 text-center rounded-2xl bg-gradient-to-br from-slate-200/60 to-slate-100 dark:from-slate-800 dark:to-slate-900 border border-slate-200/80 dark:border-slate-700">
+              <div className="w-24 h-24 rounded-3xl bg-white dark:bg-slate-800 p-3 shadow-md flex items-center justify-center mb-3 border border-slate-200/60 dark:border-slate-700/60">
+                <img src="/logos.png" alt="Coralink" className="w-full h-full object-contain" />
+              </div>
+              <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">{product.title}</h3>
+              <p className="text-xs text-[#1BA7D9] font-black uppercase tracking-wider mt-1">Coralink Corn Island</p>
+            </div>
+          )}
           {product.badge && (
             <div className="absolute top-4 left-4 px-3 py-1 rounded-lg bg-[#FF6B35] text-white text-xs font-black uppercase tracking-wider shadow-md">
               {product.badge}

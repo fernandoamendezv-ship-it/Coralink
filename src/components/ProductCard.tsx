@@ -41,15 +41,25 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         className="relative w-full aspect-square bg-slate-100 dark:bg-slate-800 overflow-hidden cursor-pointer"
         title="Clic para ver más detalles del producto"
       >
-        <img
-          src={product.image}
-          alt={product.title}
-          loading="lazy"
-          className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
-          onError={(e) => {
-            (e.target as HTMLImageElement).src = 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600&auto=format&fit=crop&q=80';
-          }}
-        />
+        {product.image && !product.image.includes('unsplash.com') ? (
+          <img
+            src={product.image}
+            alt={product.title}
+            loading="lazy"
+            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+            onError={(e) => {
+              (e.target as HTMLImageElement).src = '/logos.png';
+            }}
+          />
+        ) : (
+          <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-br from-slate-100 to-slate-200 dark:from-slate-800 dark:to-slate-900 p-4 text-center group-hover:scale-105 transition-transform duration-500">
+            <div className="w-16 h-16 rounded-2xl bg-white dark:bg-slate-800 p-2 shadow-xs flex items-center justify-center mb-2 border border-slate-200/60 dark:border-slate-700/60">
+              <img src="/logos.png" alt="Coralink" className="w-full h-full object-contain" />
+            </div>
+            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 line-clamp-1">{product.title}</span>
+            <span className="text-[9px] text-[#1BA7D9] font-black uppercase tracking-wider mt-0.5">Coralink Caribe</span>
+          </div>
+        )}
 
         {/* Badge (Top Left) */}
         {product.badge && (
