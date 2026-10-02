@@ -22,6 +22,7 @@ import { Footer } from './components/Footer';
 import { Search, Zap, Sparkles, RefreshCw } from 'lucide-react';
 import { useThemeMode } from './hooks/useThemeMode';
 import { CORALINK_LOGO_URL, isReferenceLogo } from './utils/logoConstants';
+import { scanAndRecoverCustomProducts, mergePreservingCustomizations } from './utils/productMerger';
 
 export default function App() {
   // Theme mode (Dark / Light)
@@ -92,33 +93,20 @@ export default function App() {
   // PWA Install & Update hook
   const { isInstallable, isInstalled, isIOS, install, swStatus, checkSW, hasUpdate, isUpdating, updateApp } = usePWAInstall();
 
-  // Products State with LocalStorage Persistence & Automatic Version Invalidation
+  // Products State with Intelligent Customization Preservation and Auto-Recovery
   const [products, setProducts] = useState<Product[]>(() => {
     if (typeof window !== 'undefined') {
       try {
-        const cachedVersion = localStorage.getItem('coralink_catalog_version');
-        const cached = localStorage.getItem('coralink_custom_products');
+        const { recoveredProducts } = scanAndRecoverCustomProducts(INITIAL_PRODUCTS);
 
-        // When code version changes (e.g. from GitHub push to Vercel), automatically update phone's storage!
-        if (cachedVersion !== CATALOG_VERSION) {
-          localStorage.setItem('coralink_catalog_version', CATALOG_VERSION);
-          localStorage.setItem('coralink_custom_products', JSON.stringify(INITIAL_PRODUCTS));
-          return INITIAL_PRODUCTS;
-        }
+        // Always save a safe backup
+        localStorage.setItem('coralink_custom_products', JSON.stringify(recoveredProducts));
+        localStorage.setItem('coralink_custom_products_backup', JSON.stringify(recoveredProducts));
+        localStorage.setItem('coralink_catalog_version', CATALOG_VERSION);
 
-        if (cached) {
-          const parsed = JSON.parse(cached);
-          if (Array.isArray(parsed) && parsed.length > 0) {
-            // Strip any leftover unsplash or old logo URLs and set CORALINK_LOGO_URL as reference
-            const cleaned = parsed.map((p: Product) => ({
-              ...p,
-              image: !isReferenceLogo(p.image) ? p.image : CORALINK_LOGO_URL,
-            }));
-            return cleaned;
-          }
-        }
+        return recoveredProducts;
       } catch (err) {
-        console.error('Failed to parse cached products:', err);
+        console.error('Failed to parse or recover products:', err);
       }
     }
     return INITIAL_PRODUCTS;
@@ -183,14 +171,22 @@ export default function App() {
     setIsAdminUnlocked(false);
   };
 
-  // Sync products with backend on initial load
+  // Sync products with backend on initial load (preserving local modifications)
   useEffect(() => {
     fetch('/api/products')
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.products) && data.products.length > 0) {
-          setProducts(data.products);
-          localStorage.setItem('coralink_custom_products', JSON.stringify(data.products));
+          setProducts((current) => {
+            const merged = mergePreservingCustomizations(current, data.products);
+            try {
+              localStorage.setItem('coralink_custom_products', JSON.stringify(merged));
+              localStorage.setItem('coralink_custom_products_backup', JSON.stringify(merged));
+            } catch (e) {
+              console.error(e);
+            }
+            return merged;
+          });
         }
       })
       .catch((err) => {
@@ -228,6 +224,7 @@ export default function App() {
     setProducts(updated);
     try {
       localStorage.setItem('coralink_custom_products', JSON.stringify(updated));
+      localStorage.setItem('coralink_custom_products_backup', JSON.stringify(updated));
     } catch (e) {
       console.error(e);
     }
@@ -237,6 +234,19 @@ export default function App() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ products: updated }),
     }).catch((e) => console.log('Backend sync skipped:', e));
+  };
+
+  // Manual recovery of user customizations from browser caches & history
+  const handleRecoverCustomProducts = () => {
+    const { recoveredProducts, customCount } = scanAndRecoverCustomProducts(INITIAL_PRODUCTS);
+    setProducts(recoveredProducts);
+    try {
+      localStorage.setItem('coralink_custom_products', JSON.stringify(recoveredProducts));
+      localStorage.setItem('coralink_custom_products_backup', JSON.stringify(recoveredProducts));
+    } catch (e) {
+      console.error(e);
+    }
+    return customCount;
   };
 
   const handleResetToDefaults = () => {
@@ -644,6 +654,7 @@ export default function App() {
         onResetLogo={handleResetLogo}
         onForceSync={updateApp}
         isUpdating={isUpdating}
+        onRecoverCustomProducts={handleRecoverCustomProducts}
       />
 
       <PWAStatusModal

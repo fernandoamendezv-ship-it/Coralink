@@ -71,16 +71,18 @@ export function usePWAInstall() {
     }
   }, []);
 
-  // Force clean update: unregisters old caches, reloads with latest assets
+  // Force clean update: preserves user's custom products and photos, updates Service Worker and caches
   const updateApp = useCallback(async () => {
     if (typeof window === 'undefined') return;
     setIsUpdating(true);
     try {
-      // Clear product version caches so fresh code products load
-      localStorage.removeItem('coralink_custom_products');
-      localStorage.removeItem('coralink_catalog_version');
+      // PRESERVE user products and create safety backup!
+      const currentProducts = localStorage.getItem('coralink_custom_products');
+      if (currentProducts) {
+        localStorage.setItem('coralink_custom_products_backup', currentProducts);
+      }
 
-      // Clear Cache API
+      // Clear Service Worker Cache API
       if ('caches' in window) {
         const cacheNames = await caches.keys();
         await Promise.all(cacheNames.map((name) => caches.delete(name)));

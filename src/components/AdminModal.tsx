@@ -57,6 +57,7 @@ interface AdminModalProps {
   onResetLogo?: () => void;
   onForceSync?: () => void;
   isUpdating?: boolean;
+  onRecoverCustomProducts?: () => number;
 }
 
 export const AdminModal: React.FC<AdminModalProps> = ({
@@ -73,12 +74,31 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   onResetLogo,
   onForceSync,
   isUpdating = false,
+  onRecoverCustomProducts,
 }) => {
   const [activeTab, setActiveTab] = useState<'products' | 'logo' | 'security'>('products');
   const [localProducts, setLocalProducts] = useState<Product[]>(products);
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedMainCat, setSelectedMainCat] = useState<string>('Todas');
   const [selectedProductToEdit, setSelectedProductToEdit] = useState<Product | null>(null);
+  const [recoverToastMsg, setRecoverToastMsg] = useState<string | null>(null);
+
+  // Keep local products in sync when parent products change
+  useEffect(() => {
+    setLocalProducts(products);
+  }, [products]);
+
+  const handleRecover = () => {
+    if (onRecoverCustomProducts) {
+      const count = onRecoverCustomProducts();
+      if (count > 0) {
+        setRecoverToastMsg(`¡Se restauraron exitosamente ${count} productos con sus fotos personalizadas!`);
+      } else {
+        setRecoverToastMsg('El catálogo local ya está al día. Si tienes un archivo de respaldo, usa «Importar JSON».');
+      }
+      setTimeout(() => setRecoverToastMsg(null), 5000);
+    }
+  };
 
   const handleSaveEditedProduct = (updatedProduct: Product) => {
     const updated = localProducts.map((p) => (p.id === updatedProduct.id ? updatedProduct : p));
@@ -839,6 +859,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
               {/* Action buttons on the right */}
               {activeTab === 'products' && (
                 <div className="flex flex-wrap items-center gap-1.5">
+                  {onRecoverCustomProducts && (
+                    <button
+                      onClick={handleRecover}
+                      className="px-2.5 py-1.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
+                      title="Escanear y restaurar fotos modificadas previamente de la memoria local"
+                    >
+                      <RotateCcw className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Restaurar Mis Fotos</span>
+                    </button>
+                  )}
+
                   {onForceSync && (
                     <button
                       onClick={onForceSync}
@@ -1234,6 +1265,19 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   onChange={handleImportJsonFile}
                 />
 
+                {/* Notification for Photo / Customization Recovery */}
+                {recoverToastMsg && (
+                  <div className="p-3 bg-amber-500/15 border-b border-amber-500/30 text-amber-800 dark:text-amber-200 text-xs font-bold flex items-center justify-between px-4 animate-in fade-in">
+                    <div className="flex items-center gap-2">
+                      <Sparkles className="w-4 h-4 text-amber-500 shrink-0" />
+                      <span>{recoverToastMsg}</span>
+                    </div>
+                    <button onClick={() => setRecoverToastMsg(null)} className="p-1 hover:opacity-75 cursor-pointer">
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                )}
+
                 {/* Search & Filter Bar */}
                 <div className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0">
                   <div className="flex items-center gap-2 flex-1 min-w-[240px]">
@@ -1387,6 +1431,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       </div>
 
                       <div className="flex flex-wrap items-center gap-2 shrink-0">
+                        {onRecoverCustomProducts && (
+                          <button
+                            onClick={handleRecover}
+                            className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
+                            title="Escanear la memoria local y restaurar todas las fotos y cambios previos"
+                          >
+                            <RotateCcw className="w-3.5 h-3.5" />
+                            <span>🛡️ Restaurar Mis Fotos</span>
+                          </button>
+                        )}
+
                         {onForceSync && (
                           <button
                             onClick={onForceSync}
