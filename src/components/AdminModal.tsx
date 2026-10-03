@@ -43,6 +43,7 @@ import {
   getRecoveryPhone,
   setRecoveryPhone,
 } from '../utils/adminSecurity';
+import { saveProductToFirestore } from '../services/firebaseProductsService';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -104,6 +105,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const handleSaveEditedProduct = (updatedProduct: Product) => {
     const updated = localProducts.map((p) => (p.id === updatedProduct.id ? updatedProduct : p));
     setLocalProducts(updated);
+    saveProductToFirestore(updatedProduct).catch((err) =>
+      console.warn('Direct Firestore save notice:', err)
+    );
     onSaveProducts(updated);
     setSelectedProductToEdit(null);
   };

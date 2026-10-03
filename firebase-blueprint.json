@@ -1,0 +1,45 @@
+{
+  "entities": {
+    "Product": {
+      "title": "Product",
+      "description": "A catalog item sold by Coralink",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "description": "Unique product identifier" },
+        "title": { "type": "string", "description": "Product display title" },
+        "mainCategory": { "type": "string", "description": "Main category name" },
+        "subCategory": { "type": "string", "description": "Subcategory name" },
+        "price": { "type": "number", "description": "Current price in Cordobas (C$)" },
+        "originalPrice": { "type": "number", "description": "Previous price for discount calculations" },
+        "image": { "type": "string", "description": "Direct image URL" },
+        "description": { "type": "string", "description": "Product description and features" },
+        "inStock": { "type": "boolean", "description": "Availability flag" },
+        "featured": { "type": "boolean", "description": "Whether product is highlighted in flash deals" },
+        "badge": { "type": "string", "description": "Promotional badge text" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last update" }
+      },
+      "required": ["id", "title", "mainCategory", "subCategory", "price", "image", "inStock"]
+    },
+    "StoreConfig": {
+      "title": "StoreConfig",
+      "description": "Storewide configuration and branding settings",
+      "type": "object",
+      "properties": {
+        "logoUrl": { "type": "string", "description": "Direct URL to store logo" },
+        "storeName": { "type": "string", "description": "Store name" },
+        "updatedAt": { "type": "string", "description": "ISO timestamp of last update" }
+      },
+      "required": ["logoUrl"]
+    }
+  },
+  "firestore": {
+    "/products/{productId}": {
+      "schema": "Product",
+      "description": "Collection of all store products synchronized in real-time"
+    },
+    "/config/{configId}": {
+      "schema": "StoreConfig",
+      "description": "Store global configuration and branding"
+    }
+  }
+}

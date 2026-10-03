@@ -1,0 +1,38 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isValidId(id) {
+      return id is string && id.size() > 0 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidProduct(data) {
+      return data.keys().hasAll(['id', 'title', 'mainCategory', 'subCategory', 'price', 'image', 'inStock'])
+        && data.id is string && data.id.size() > 0 && data.id.size() <= 128
+        && data.title is string && data.title.size() > 0 && data.title.size() <= 200
+        && data.mainCategory is string && data.mainCategory.size() > 0 && data.mainCategory.size() <= 100
+        && data.subCategory is string && data.subCategory.size() > 0 && data.subCategory.size() <= 100
+        && data.price is number && data.price >= 0
+        && data.image is string && data.image.size() > 0 && data.image.size() <= 2000
+        && data.inStock is bool;
+    }
+
+    function isValidConfig(data) {
+      return data.keys().hasAll(['logoUrl'])
+        && data.logoUrl is string && data.logoUrl.size() > 0 && data.logoUrl.size() <= 2000;
+    }
+
+    // Public catalog read access for customers and devices worldwide
+    match /products/{productId} {
+      allow read: if true;
+      allow create, update: if isValidId(productId) && isValidProduct(request.resource.data);
+      allow delete: if isValidId(productId);
+    }
+
+    match /config/{configId} {
+      allow read: if true;
+      allow create, update: if isValidId(configId) && isValidConfig(request.resource.data);
+      allow delete: if isValidId(configId);
+    }
+  }
+}

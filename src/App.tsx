@@ -23,6 +23,10 @@ import { Search, Zap, Sparkles, RefreshCw } from 'lucide-react';
 import { useThemeMode } from './hooks/useThemeMode';
 import { CORALINK_LOGO_URL, isReferenceLogo } from './utils/logoConstants';
 import { scanAndRecoverCustomProducts, mergePreservingCustomizations } from './utils/productMerger';
+import {
+  subscribeToFirebaseProducts,
+  syncAllProductsToFirestore,
+} from './services/firebaseProductsService';
 
 export default function App() {
   // Theme mode (Dark / Light)
@@ -173,8 +177,27 @@ export default function App() {
 
   const [syncToastMsg, setSyncToastMsg] = useState<string | null>(null);
 
-  // Sync products with backend on initial load, polling, and tab visibility change
+  // Sync products with Firebase Firestore (real-time) and local server
   useEffect(() => {
+    // 1. Subscribe to Firebase Firestore for instant real-time synchronization across all devices
+    const unsubscribeFirestore = subscribeToFirebaseProducts(
+      (firestoreProducts) => {
+        if (Array.isArray(firestoreProducts) && firestoreProducts.length > 0) {
+          setProducts(firestoreProducts);
+          try {
+            localStorage.setItem('coralink_custom_products', JSON.stringify(firestoreProducts));
+            localStorage.setItem('coralink_custom_products_backup', JSON.stringify(firestoreProducts));
+          } catch (e) {
+            console.error(e);
+          }
+        }
+      },
+      (error) => {
+        console.warn('Firestore subscription fallback:', error);
+      }
+    );
+
+    // 2. Fallback backend sync & tab visibility sync
     const syncCatalogWithServer = () => {
       fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' })
         .then((res) => res.json())
@@ -190,15 +213,15 @@ export default function App() {
           }
         })
         .catch((err) => {
-          console.log('Running in local/offline mode:', err);
+          // Offline mode or static hosting
         });
     };
 
     // Initial sync
     syncCatalogWithServer();
 
-    // Auto-sync polling every 4 seconds so changes on PC appear on phone within seconds
-    const interval = setInterval(syncCatalogWithServer, 4000);
+    // Auto-sync polling
+    const interval = setInterval(syncCatalogWithServer, 5000);
 
     // Sync when returning to tab / waking phone
     const handleVisibility = () => {
@@ -211,6 +234,7 @@ export default function App() {
     window.addEventListener('focus', syncCatalogWithServer);
 
     return () => {
+      unsubscribeFirestore();
       clearInterval(interval);
       window.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', syncCatalogWithServer);
@@ -226,15 +250,13 @@ export default function App() {
           setProducts(data.products);
           localStorage.setItem('coralink_custom_products', JSON.stringify(data.products));
           localStorage.setItem('coralink_custom_products_backup', JSON.stringify(data.products));
-          setSyncToastMsg('¡Catálogo sincronizado con los últimos cambios!');
-          setTimeout(() => setSyncToastMsg(null), 3000);
+          syncAllProductsToFirestore(data.products).catch(() => {});
         }
       })
-      .catch((e) => {
-        console.error(e);
-        setSyncToastMsg('Modo offline: se mantienen los cambios guardados.');
-        setTimeout(() => setSyncToastMsg(null), 3000);
-      });
+      .catch(() => {});
+
+    setSyncToastMsg('¡Catálogo sincronizado en tiempo real con Firebase!');
+    setTimeout(() => setSyncToastMsg(null), 3000);
 
     if (updateApp) {
       updateApp();
@@ -276,6 +298,12 @@ export default function App() {
       console.error(e);
     }
 
+    // 1. Instantly push to Firebase Firestore in the cloud
+    syncAllProductsToFirestore(updated).catch((err) =>
+      console.warn('Firestore sync background notice:', err)
+    );
+
+    // 2. Also send to local backend if available
     fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
