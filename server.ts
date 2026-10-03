@@ -10,7 +10,11 @@ const app = express();
 const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
-app.use(express.json({ limit: '10mb' }));
+app.use(express.json({ limit: '50mb' }));
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
+
+// Serve uploaded product images statically
+app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
 // Persistent products storage file
 const DATA_FILE = path.join(__dirname, 'coralink-products-data.json');
@@ -281,6 +285,59 @@ app.get('/api/resolve-image', async (req, res) => {
   } catch (err: any) {
     console.error('Error in /api/resolve-image:', err.message);
     return res.json({ success: false, directUrl: rawUrl });
+  }
+});
+
+// Endpoint to upload and persist product images directly to the server
+app.post('/api/upload', (req, res) => {
+  try {
+    const { dataUrl, productId } = req.body;
+    if (!dataUrl || typeof dataUrl !== 'string') {
+      return res.status(400).json({ success: false, message: 'Falta la imagen' });
+    }
+
+    const matches = dataUrl.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return res.status(400).json({ success: false, message: 'Formato de imagen inválido' });
+    }
+
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, 'base64');
+
+    let ext = 'jpg';
+    if (mimeType.includes('png')) ext = 'png';
+    else if (mimeType.includes('webp')) ext = 'webp';
+    else if (mimeType.includes('svg')) ext = 'svg';
+
+    const safeId = (productId || 'prod').replace(/[^a-zA-Z0-9_-]/g, '');
+    const safeName = `foto_${safeId}_${Date.now()}.${ext}`;
+
+    const uploadsDir = path.join(__dirname, 'public', 'uploads');
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const filePath = path.join(uploadsDir, safeName);
+    fs.writeFileSync(filePath, buffer);
+
+    // Also write to dist/uploads if dist exists (for production bundle)
+    const distPath = path.join(__dirname, 'dist', 'uploads');
+    try {
+      if (fs.existsSync(path.join(__dirname, 'dist'))) {
+        if (!fs.existsSync(distPath)) {
+          fs.mkdirSync(distPath, { recursive: true });
+        }
+        fs.writeFileSync(path.join(distPath, safeName), buffer);
+      }
+    } catch (e) {
+      console.warn('Could not sync to dist/uploads:', e);
+    }
+
+    const url = `/uploads/${safeName}`;
+    return res.json({ success: true, url, filename: safeName });
+  } catch (err: any) {
+    console.error('Error uploading image:', err);
+    return res.status(500).json({ success: false, message: err.message });
   }
 });
 

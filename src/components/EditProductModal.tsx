@@ -94,18 +94,74 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   const [savedToast, setSavedToast] = useState(false);
   const [linkStatus, setLinkStatus] = useState<'idle' | 'resolving' | 'valid' | 'invalid'>('idle');
   const [isResolvingLink, setIsResolvingLink] = useState(false);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [uploadSuccessMsg, setUploadSuccessMsg] = useState<string | null>(null);
+  const [localPathError, setLocalPathError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Compress image on the client to guarantee small size (<80KB) and prevent localStorage quota errors
+  const compressImageFile = (file: File, maxWidth = 1000, quality = 0.82): Promise<string> => {
+    return new Promise((resolve) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          let width = img.width;
+          let height = img.height;
+          if (width > maxWidth) {
+            height = Math.round((height * maxWidth) / width);
+            width = maxWidth;
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) {
+            resolve(e.target?.result as string);
+            return;
+          }
+          ctx.drawImage(img, 0, 0, width, height);
+          const dataUrl = canvas.toDataURL('image/webp', quality);
+          resolve(dataUrl);
+        };
+        img.onerror = () => resolve(e.target?.result as string);
+        img.src = e.target?.result as string;
+      };
+      reader.onerror = () => resolve('');
+      reader.readAsDataURL(file);
+    });
+  };
 
   // Function to process and convert link
   const processImageLink = async (rawVal: string) => {
-    if (!rawVal.trim()) {
+    const trimmed = rawVal.trim();
+    if (!trimmed) {
       setImage('');
       setLinkStatus('idle');
+      setLocalPathError(false);
       return;
     }
 
+    // Detect if user pasted a local file path from their computer (e.g. C:\... or file:///...)
+    if (
+      trimmed.startsWith('C:') ||
+      trimmed.startsWith('c:') ||
+      trimmed.startsWith('D:') ||
+      trimmed.startsWith('d:') ||
+      trimmed.startsWith('file:') ||
+      trimmed.includes('\\Users\\') ||
+      trimmed.includes('/Users/') ||
+      trimmed.includes('C:\\')
+    ) {
+      setLocalPathError(true);
+      setLinkStatus('invalid');
+      return;
+    } else {
+      setLocalPathError(false);
+    }
+
     // 1. Immediately format synchronously (Google Drive, Dropbox, Imgur, BBCode, HTML)
-    const formatted = formatDirectImageUrl(rawVal);
+    const formatted = formatDirectImageUrl(trimmed);
     setImage(formatted);
 
     // 2. If it is a viewer page (Postimages or ImgBB), resolve to direct image
@@ -130,7 +186,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     }
 
     // 3. Test if URL works as an image
-    if (formatted.startsWith('http')) {
+    if (formatted.startsWith('http') || formatted.startsWith('/uploads/')) {
       setLinkStatus('resolving');
       const works = await testImageUrl(formatted);
       setLinkStatus(works ? 'valid' : 'invalid');
@@ -180,10 +236,52 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     }
   };
 
-  // Handle file upload
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Handle file upload with client-side compression and server persistence
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (file) {
+    if (!file) return;
+
+    setIsUploadingImage(true);
+    setUploadSuccessMsg(null);
+    setLocalPathError(false);
+
+    try {
+      // 1. Client-side compression to avoid localStorage quota crash
+      const compressedDataUrl = await compressImageFile(file);
+      if (!compressedDataUrl) {
+        throw new Error('No se pudo procesar la imagen');
+      }
+
+      // 2. Upload to server so the photo has a real URL and works on all devices
+      const res = await fetch('/api/upload', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          dataUrl: compressedDataUrl,
+          productId: product?.id,
+          filename: file.name,
+        }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        if (data.success && data.url) {
+          setImage(data.url);
+          setLinkStatus('valid');
+          setUploadSuccessMsg('¡Foto subida y sincronizada para todos los dispositivos!');
+          setTimeout(() => setUploadSuccessMsg(null), 4000);
+          return;
+        }
+      }
+
+      // Fallback: use compressed data URL directly
+      setImage(compressedDataUrl);
+      setLinkStatus('valid');
+      setUploadSuccessMsg('¡Foto optimizada y lista para guardar!');
+      setTimeout(() => setUploadSuccessMsg(null), 3000);
+    } catch (err) {
+      console.error('Error al procesar la imagen:', err);
+      // Last resort fallback
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
@@ -192,6 +290,12 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
         }
       };
       reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingImage(false);
+      // Reset input value so user can pick the same file again if desired
+      if (e.target) {
+        e.target.value = '';
+      }
     }
   };
 
@@ -504,7 +608,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                   <div className="sm:col-span-2 space-y-2.5">
                     {/* Method 1: File Upload */}
                     <div>
-                      <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300 block mb-1">
+                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
                         1. Cargar imagen desde tu celular o computadora:
                       </span>
                       <input
@@ -517,18 +621,34 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                       <button
                         type="button"
                         onClick={() => fileInputRef.current?.click()}
-                        className="w-full py-2.5 px-3 rounded-xl border-2 border-dashed border-slate-300 dark:border-slate-700 hover:border-[#1BA7D9] bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                        disabled={isUploadingImage}
+                        className="w-full py-2.5 px-3 rounded-xl border-2 border-dashed border-[#1BA7D9]/60 hover:border-[#1BA7D9] bg-sky-50/60 dark:bg-sky-950/20 hover:bg-sky-100/50 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
                       >
-                        <Upload className="w-4 h-4 text-[#1BA7D9]" />
-                        <span>Seleccionar Foto / Archivo</span>
+                        {isUploadingImage ? (
+                          <Loader2 className="w-4 h-4 text-[#1BA7D9] animate-spin" />
+                        ) : (
+                          <Upload className="w-4 h-4 text-[#1BA7D9]" />
+                        )}
+                        <span>
+                          {isUploadingImage
+                            ? 'Optimizando y subiendo foto a la tienda...'
+                            : 'Seleccionar Foto / Archivo de mi Ordenador'}
+                        </span>
                       </button>
+
+                      {uploadSuccessMsg && (
+                        <div className="mt-1.5 p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 animate-in fade-in">
+                          <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                          <span>{uploadSuccessMsg}</span>
+                        </div>
+                      )}
                     </div>
 
                     {/* Method 2: Direct URL */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
-                          2. O pegar enlace de tu foto (Postimages, Google Drive, etc.):
+                          2. O pegar enlace de internet (Postimages, Google Drive, etc.):
                         </span>
                         {image && (
                           <button
@@ -536,6 +656,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                             onClick={() => {
                               setImage('');
                               setLinkStatus('idle');
+                              setLocalPathError(false);
                             }}
                             className="text-[11px] font-bold text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 flex items-center gap-1 cursor-pointer transition-colors"
                           >
@@ -564,6 +685,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                               onClick={() => {
                                 setImage('');
                                 setLinkStatus('idle');
+                                setLocalPathError(false);
                               }}
                               className="absolute right-2.5 top-2.5 p-1 rounded-full text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
                               title="Limpiar campo"
@@ -589,8 +711,21 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                         </button>
                       </div>
 
+                      {/* Local Path Error Warning */}
+                      {localPathError && (
+                        <div className="mt-2 p-2.5 rounded-xl bg-amber-100 dark:bg-amber-950/70 border border-amber-300 dark:border-amber-700 text-amber-900 dark:text-amber-200 text-xs font-bold space-y-1 animate-in fade-in">
+                          <div className="flex items-center gap-1.5">
+                            <AlertCircle className="w-4 h-4 text-amber-600 shrink-0" />
+                            <span>Ruta local de tu ordenador detectada («C:\...»)</span>
+                          </div>
+                          <p className="text-[11px] font-normal leading-relaxed">
+                            Los navegadores no pueden abrir rutas de carpetas de tu PC directamente por privacidad. Para usar esta foto, presiona el botón arriba <strong>«Seleccionar Foto / Archivo de mi Ordenador»</strong> y el sistema la cargará automáticamente a la tienda.
+                          </p>
+                        </div>
+                      )}
+
                       {/* Live Link Status Feedback */}
-                      {image && (
+                      {image && !localPathError && (
                         <div className="mt-2 text-xs">
                           {linkStatus === 'resolving' && (
                             <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-bold bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800">
