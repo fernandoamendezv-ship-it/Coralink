@@ -171,6 +171,8 @@ export default function App() {
     setIsAdminUnlocked(false);
   };
 
+  const [syncToastMsg, setSyncToastMsg] = useState<string | null>(null);
+
   // Sync products with backend on initial load, polling, and tab visibility change
   useEffect(() => {
     const syncCatalogWithServer = () => {
@@ -178,16 +180,13 @@ export default function App() {
         .then((res) => res.json())
         .then((data) => {
           if (data.success && Array.isArray(data.products) && data.products.length > 0) {
-            setProducts((current) => {
-              const merged = mergePreservingCustomizations(current, data.products);
-              try {
-                localStorage.setItem('coralink_custom_products', JSON.stringify(merged));
-                localStorage.setItem('coralink_custom_products_backup', JSON.stringify(merged));
-              } catch (e) {
-                console.error(e);
-              }
-              return merged;
-            });
+            setProducts(data.products);
+            try {
+              localStorage.setItem('coralink_custom_products', JSON.stringify(data.products));
+              localStorage.setItem('coralink_custom_products_backup', JSON.stringify(data.products));
+            } catch (e) {
+              console.error(e);
+            }
           }
         })
         .catch((err) => {
@@ -198,8 +197,8 @@ export default function App() {
     // Initial sync
     syncCatalogWithServer();
 
-    // Auto-sync polling every 8 seconds
-    const interval = setInterval(syncCatalogWithServer, 8000);
+    // Auto-sync polling every 4 seconds so changes on PC appear on phone within seconds
+    const interval = setInterval(syncCatalogWithServer, 4000);
 
     // Sync when returning to tab / waking phone
     const handleVisibility = () => {
@@ -217,6 +216,30 @@ export default function App() {
       window.removeEventListener('focus', syncCatalogWithServer);
     };
   }, []);
+
+  // Manual one-tap sync for user
+  const handleManualSyncCatalog = () => {
+    fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.products) && data.products.length > 0) {
+          setProducts(data.products);
+          localStorage.setItem('coralink_custom_products', JSON.stringify(data.products));
+          localStorage.setItem('coralink_custom_products_backup', JSON.stringify(data.products));
+          setSyncToastMsg('¡Catálogo sincronizado con los últimos cambios!');
+          setTimeout(() => setSyncToastMsg(null), 3000);
+        }
+      })
+      .catch((e) => {
+        console.error(e);
+        setSyncToastMsg('Modo offline: se mantienen los cambios guardados.');
+        setTimeout(() => setSyncToastMsg(null), 3000);
+      });
+
+    if (updateApp) {
+      updateApp();
+    }
+  };
 
   // Save cart changes
   useEffect(() => {
@@ -257,7 +280,15 @@ export default function App() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ products: updated }),
-    }).catch((e) => console.log('Backend sync skipped:', e));
+    })
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.success && Array.isArray(data.products)) {
+          setProducts(data.products);
+          localStorage.setItem('coralink_custom_products', JSON.stringify(data.products));
+        }
+      })
+      .catch((e) => console.log('Backend sync skipped:', e));
   };
 
   // Manual recovery of user customizations from browser caches & history
@@ -493,9 +524,17 @@ export default function App() {
           isDarkMode={isDarkMode}
           onToggleTheme={toggleTheme}
           logoUrl={storeLogo}
-          onForceSync={updateApp}
+          onForceSync={handleManualSyncCatalog}
           isUpdating={isUpdating}
         />
+
+        {/* Real-time synchronization toast */}
+        {syncToastMsg && (
+          <div className="bg-emerald-600 text-white text-xs font-bold py-2 px-4 text-center shadow-md animate-in fade-in flex items-center justify-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+            <span>{syncToastMsg}</span>
+          </div>
+        )}
 
         {/* Category Pills: Equalized / averaged width, with subcategories hidden when 'Todo' is active */}
         <CategoryNav

@@ -404,7 +404,7 @@ export const INITIAL_PRODUCTS: Product[] = ${JSON.stringify(products, null, 2)};
   }
 
   if (saved) {
-    return res.json({ success: true, message: 'Products saved successfully' });
+    return res.json({ success: true, message: 'Products saved successfully', products });
   } else {
     throw new Error('Failed to write products to storage');
   }
