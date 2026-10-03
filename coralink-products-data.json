@@ -6,7 +6,7 @@
     "subCategory": "Fotoregalos",
     "price": 190,
     "originalPrice": 230,
-    "image": "https://i.postimg.cc/4Nkhfnd6/LG1.png",
+    "image": "/uploads/foto-1.jpg",
     "description": "Baldosa de cerámica brillante 4x4 pulgadas con sublimación de alta fidelidad fotográfica. Incluye atril de soporte.",
     "rating": 4.8,
     "reviewsCount": 38,
@@ -21,7 +21,8 @@
           "Mate caribeño"
         ]
       }
-    ]
+    ],
+    "featured": false
   },
   {
     "id": "foto-2",
@@ -30,13 +31,14 @@
     "subCategory": "Fotoregalos",
     "price": 220,
     "originalPrice": 260,
-    "image": "https://i.postimg.cc/4Nkhfnd6/LG1.png",
+    "image": "https://i.postimg.cc/gc6Zb3Yy/Ceramica-6x6.jpg",
     "description": "Cerámica personalizada tamaño 6x6 pulgadas ideal para fotografías de bodas, bautizos o retratos familiares.",
     "rating": 4.9,
     "reviewsCount": 45,
     "salesCount": 98,
     "badge": "Popular",
-    "inStock": true
+    "inStock": true,
+    "featured": false
   },
   {
     "id": "foto-3",
@@ -45,12 +47,13 @@
     "subCategory": "Fotoregalos",
     "price": 240,
     "originalPrice": 290,
-    "image": "https://i.postimg.cc/4Nkhfnd6/LG1.png",
+    "image": "https://i.postimg.cc/wxsmYD6c/Ceramica-6x8.jpg",
     "description": "Cerámica de alta definición 6x8 pulgadas en orientación vertical u horizontal.",
     "rating": 4.7,
     "reviewsCount": 29,
     "salesCount": 76,
-    "inStock": true
+    "inStock": true,
+    "featured": false
   },
   {
     "id": "foto-4",
@@ -59,13 +62,14 @@
     "subCategory": "Fotoregalos",
     "price": 290,
     "originalPrice": 350,
-    "image": "https://i.postimg.cc/4Nkhfnd6/LG1.png",
+    "image": "https://i.postimg.cc/c18nGfsB/Ceramica-8x10.jpg",
     "description": "Retablo cerámico premium 8x10 pulgadas con impresión HD resistente a la humedad y rayos UV.",
     "rating": 5,
     "reviewsCount": 62,
     "salesCount": 110,
     "badge": "Destacado",
-    "inStock": true
+    "inStock": true,
+    "featured": false
   },
   {
     "id": "foto-5",
@@ -74,12 +78,13 @@
     "subCategory": "Fotoregalos",
     "price": 310,
     "originalPrice": 380,
-    "image": "https://i.postimg.cc/4Nkhfnd6/LG1.png",
+    "image": "https://i.postimg.cc/jd0JxC5z/Ceramica-8x12.jpg",
     "description": "Cerámica gigante de 8x12 pulgadas para cuadros conmemorativos, diplomas y retratos artísticos.",
     "rating": 4.9,
     "reviewsCount": 41,
     "salesCount": 84,
-    "inStock": true
+    "inStock": true,
+    "featured": false
   },
   {
     "id": "foto-6",
@@ -141,13 +146,14 @@
     "subCategory": "Fotoregalos",
     "price": 350,
     "originalPrice": 420,
-    "image": "https://i.postimg.cc/4Nkhfnd6/LG1.png",
+    "image": "https://i.postimg.cc/kX3tJD48/Cojin-corazon.jpg",
     "description": "El regalo más romántico: cojín ergonómico en forma de corazón con frase y fotografía a todo color.",
     "rating": 5,
     "reviewsCount": 114,
     "salesCount": 310,
     "badge": "Romántico",
-    "inStock": true
+    "inStock": true,
+    "featured": false
   },
   {
     "id": "foto-10",

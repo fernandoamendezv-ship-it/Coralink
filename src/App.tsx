@@ -171,27 +171,51 @@ export default function App() {
     setIsAdminUnlocked(false);
   };
 
-  // Sync products with backend on initial load (preserving local modifications)
+  // Sync products with backend on initial load, polling, and tab visibility change
   useEffect(() => {
-    fetch('/api/products')
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.products) && data.products.length > 0) {
-          setProducts((current) => {
-            const merged = mergePreservingCustomizations(current, data.products);
-            try {
-              localStorage.setItem('coralink_custom_products', JSON.stringify(merged));
-              localStorage.setItem('coralink_custom_products_backup', JSON.stringify(merged));
-            } catch (e) {
-              console.error(e);
-            }
-            return merged;
-          });
-        }
-      })
-      .catch((err) => {
-        console.log('Running in local/offline mode:', err);
-      });
+    const syncCatalogWithServer = () => {
+      fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' })
+        .then((res) => res.json())
+        .then((data) => {
+          if (data.success && Array.isArray(data.products) && data.products.length > 0) {
+            setProducts((current) => {
+              const merged = mergePreservingCustomizations(current, data.products);
+              try {
+                localStorage.setItem('coralink_custom_products', JSON.stringify(merged));
+                localStorage.setItem('coralink_custom_products_backup', JSON.stringify(merged));
+              } catch (e) {
+                console.error(e);
+              }
+              return merged;
+            });
+          }
+        })
+        .catch((err) => {
+          console.log('Running in local/offline mode:', err);
+        });
+    };
+
+    // Initial sync
+    syncCatalogWithServer();
+
+    // Auto-sync polling every 8 seconds
+    const interval = setInterval(syncCatalogWithServer, 8000);
+
+    // Sync when returning to tab / waking phone
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') {
+        syncCatalogWithServer();
+      }
+    };
+
+    window.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', syncCatalogWithServer);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', syncCatalogWithServer);
+    };
   }, []);
 
   // Save cart changes

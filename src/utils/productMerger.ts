@@ -67,10 +67,15 @@ export function mergePreservingCustomizations(
     const customized = isProductCustomized(existing, def);
     if (customized) {
       const formatted = existing.image ? formatDirectImageUrl(existing.image) : '';
-      const finalImage =
+      let finalImage =
         formatted && !isReferenceLogo(formatted)
           ? formatted
           : CORALINK_LOGO_URL;
+
+      // If server has a custom photo and existing local only had the reference logo, use server's photo
+      if (def.image && !isReferenceLogo(def.image) && isReferenceLogo(existing.image)) {
+        finalImage = def.image;
+      }
 
       return {
         ...def,

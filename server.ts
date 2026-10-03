@@ -225,6 +225,9 @@ app.get('/api/simulate-500', (req, res, next) => {
 
 // Admin products storage API
 app.get('/api/products', (req, res) => {
+  res.set('Cache-Control', 'no-store, no-cache, must-revalidate, proxy-revalidate');
+  res.set('Pragma', 'no-cache');
+  res.set('Expires', '0');
   const products = readStoredProducts();
   res.json({ success: true, products });
 });
@@ -341,11 +344,46 @@ app.post('/api/upload', (req, res) => {
   }
 });
 
-app.post('/api/products', (req, res) => {
+app.post('/api/products', async (req, res) => {
   const { products } = req.body;
   if (!products || !Array.isArray(products)) {
     return res.status(400).json({ success: false, message: 'Invalid products array' });
   }
+
+  // Auto-download any Google Drive or remote images to local /uploads so mobile devices never get blocked
+  for (const p of products) {
+    if (p && p.image && (p.image.includes('googleusercontent.com') || p.image.includes('drive.google.com'))) {
+      try {
+        const fileRes = await fetch(p.image, {
+          headers: {
+            'User-Agent':
+              'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+          },
+        });
+        if (fileRes.ok) {
+          const arrayBuf = await fileRes.arrayBuffer();
+          const buffer = Buffer.from(arrayBuf);
+          const uploadsDir = path.join(__dirname, 'public', 'uploads');
+          if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+          const safeName = `foto_${p.id || 'p'}_${Date.now()}.jpg`;
+          fs.writeFileSync(path.join(uploadsDir, safeName), buffer);
+          
+          // Also sync to dist/uploads if dist exists
+          const distDir = path.join(__dirname, 'dist', 'uploads');
+          if (fs.existsSync(path.join(__dirname, 'dist'))) {
+            if (!fs.existsSync(distDir)) fs.mkdirSync(distDir, { recursive: true });
+            fs.writeFileSync(path.join(distDir, safeName), buffer);
+          }
+          
+          p.image = `/uploads/${safeName}`;
+          console.log(`Auto-cached drive image for product ${p.id} to /uploads/${safeName}`);
+        }
+      } catch (err) {
+        console.warn('Could not auto-cache drive image:', err);
+      }
+    }
+  }
+
   const saved = writeStoredProducts(products);
 
   // Also update src/data/initialProducts.ts so changes are permanent in the source code!
