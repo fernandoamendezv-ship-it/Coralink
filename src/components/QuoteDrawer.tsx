@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { CartItem } from '../types';
 import { X, Trash2, MessageCircle, MapPin, User, ShoppingBag } from 'lucide-react';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
+import { formatDirectImageUrl } from '../utils/imageUrlResolver';
 
 interface QuoteDrawerProps {
   isOpen: boolean;
@@ -138,7 +139,7 @@ export const QuoteDrawer: React.FC<QuoteDrawerProps> = ({
                 >
                   {!isReferenceLogo(item.product.image) ? (
                     <img
-                      src={item.product.image}
+                      src={formatDirectImageUrl(item.product.image)}
                       alt={item.product.title}
                       className="w-16 h-16 rounded-xl object-cover shrink-0 bg-slate-200 dark:bg-slate-700"
                       onError={(e) => {

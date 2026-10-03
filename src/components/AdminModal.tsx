@@ -34,6 +34,7 @@ import {
 import { CoralinkLogo } from './CoralinkLogo';
 import { EditProductModal } from './EditProductModal';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
+import { formatDirectImageUrl } from '../utils/imageUrlResolver';
 import {
   verifyAdminPassword,
   setAdminPassword,
@@ -1512,7 +1513,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-100 shrink-0 border border-slate-100 dark:border-slate-800 relative">
                             {!isReferenceLogo(product.image) ? (
                               <img
-                                src={product.image}
+                                src={formatDirectImageUrl(product.image)}
                                 alt={product.title}
                                 className="w-full h-full object-cover"
                                 onError={(e) => {

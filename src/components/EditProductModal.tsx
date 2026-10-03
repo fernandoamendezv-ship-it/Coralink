@@ -16,9 +16,17 @@ import {
   AlertCircle,
   Sparkles,
   Layers,
+  Loader2,
+  ExternalLink,
 } from 'lucide-react';
 import { verifyAdminPassword } from '../utils/adminSecurity';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
+import {
+  formatDirectImageUrl,
+  resolveToDirectImageUrl,
+  testImageUrl,
+  isViewerPageUrl,
+} from '../utils/imageUrlResolver';
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -84,7 +92,52 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
 
   // UI state
   const [savedToast, setSavedToast] = useState(false);
+  const [linkStatus, setLinkStatus] = useState<'idle' | 'resolving' | 'valid' | 'invalid'>('idle');
+  const [isResolvingLink, setIsResolvingLink] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Function to process and convert link
+  const processImageLink = async (rawVal: string) => {
+    if (!rawVal.trim()) {
+      setImage('');
+      setLinkStatus('idle');
+      return;
+    }
+
+    // 1. Immediately format synchronously (Google Drive, Dropbox, Imgur, BBCode, HTML)
+    const formatted = formatDirectImageUrl(rawVal);
+    setImage(formatted);
+
+    // 2. If it is a viewer page (Postimages or ImgBB), resolve to direct image
+    if (isViewerPageUrl(formatted)) {
+      setLinkStatus('resolving');
+      setIsResolvingLink(true);
+      try {
+        const direct = await resolveToDirectImageUrl(formatted);
+        if (direct && direct !== formatted) {
+          setImage(direct);
+          const ok = await testImageUrl(direct);
+          setLinkStatus(ok ? 'valid' : 'invalid');
+        } else {
+          setLinkStatus('invalid');
+        }
+      } catch (err) {
+        setLinkStatus('invalid');
+      } finally {
+        setIsResolvingLink(false);
+      }
+      return;
+    }
+
+    // 3. Test if URL works as an image
+    if (formatted.startsWith('http')) {
+      setLinkStatus('resolving');
+      const works = await testImageUrl(formatted);
+      setLinkStatus(works ? 'valid' : 'invalid');
+    } else {
+      setLinkStatus('idle');
+    }
+  };
 
   // Sync form when product changes
   useEffect(() => {
@@ -97,6 +150,11 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       // Clean up reference logo URLs so user has a fresh empty field ready for a new link
       const cleanImg = !isReferenceLogo(product.image) ? product.image : '';
       setImage(cleanImg);
+      if (cleanImg && cleanImg.startsWith('http')) {
+        testImageUrl(cleanImg).then((ok) => setLinkStatus(ok ? 'valid' : 'invalid'));
+      } else {
+        setLinkStatus('idle');
+      }
       setDescription(product.description || '');
       setInStock(product.inStock !== false);
       setFeatured(!!product.featured);
@@ -130,6 +188,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       reader.onload = (event) => {
         if (event.target?.result) {
           setImage(event.target.result as string);
+          setLinkStatus('valid');
         }
       };
       reader.readAsDataURL(file);
@@ -137,11 +196,23 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   };
 
   // Handle Form Submit
-  const handleSave = (e: React.FormEvent) => {
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) return;
 
-    const cleanSavedImage = image && !isReferenceLogo(image) ? image.trim() : CORALINK_LOGO_URL;
+    // Ensure link is fully resolved before saving
+    let finalImage = formatDirectImageUrl(image);
+    if (isViewerPageUrl(finalImage)) {
+      try {
+        const resolved = await resolveToDirectImageUrl(finalImage);
+        if (resolved) finalImage = resolved;
+      } catch (err) {
+        console.warn('Could not resolve image on save:', err);
+      }
+    }
+
+    const cleanSavedImage =
+      finalImage && !isReferenceLogo(finalImage) ? finalImage.trim() : CORALINK_LOGO_URL;
 
     const updatedProduct: Product = {
       ...product,
@@ -456,13 +527,16 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                     {/* Method 2: Direct URL */}
                     <div>
                       <div className="flex items-center justify-between mb-1">
-                        <span className="text-[11px] font-bold text-slate-600 dark:text-slate-300">
-                          2. O escribir / pegar enlace URL directo:
+                        <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
+                          2. O pegar enlace de tu foto (Postimages, Google Drive, etc.):
                         </span>
                         {image && (
                           <button
                             type="button"
-                            onClick={() => setImage('')}
+                            onClick={() => {
+                              setImage('');
+                              setLinkStatus('idle');
+                            }}
                             className="text-[11px] font-bold text-rose-500 hover:text-rose-700 dark:hover:text-rose-400 flex items-center gap-1 cursor-pointer transition-colors"
                           >
                             <X className="w-3.5 h-3.5" />
@@ -470,37 +544,87 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                           </button>
                         )}
                       </div>
-                      <div className="relative">
-                        <input
-                          type="text"
-                          value={image}
-                          onChange={(e) => setImage(e.target.value)}
-                          placeholder="Pega aquí el enlace nuevo (ej: https://i.postimg.cc/tu-foto.jpg)"
-                          className="w-full pl-3 pr-9 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] outline-none font-mono"
-                        />
-                        {image && (
-                          <button
-                            type="button"
-                            onClick={() => setImage('')}
-                            className="absolute right-2.5 top-2.5 p-1 rounded-full text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
-                            title="Limpiar campo"
-                          >
-                            <X className="w-3.5 h-3.5" />
-                          </button>
-                        )}
+
+                      <div className="flex gap-2">
+                        <div className="relative flex-1">
+                          <input
+                            type="text"
+                            value={image}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setImage(val);
+                              processImageLink(val);
+                            }}
+                            placeholder="Pega aquí: https://postimg.cc/... o enlace directo .jpg/.png"
+                            className="w-full pl-3 pr-9 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] outline-none font-mono"
+                          />
+                          {image && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setImage('');
+                                setLinkStatus('idle');
+                              }}
+                              className="absolute right-2.5 top-2.5 p-1 rounded-full text-slate-400 hover:text-rose-500 hover:bg-slate-100 dark:hover:bg-slate-700 transition-colors cursor-pointer"
+                              title="Limpiar campo"
+                            >
+                              <X className="w-3.5 h-3.5" />
+                            </button>
+                          )}
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={() => processImageLink(image)}
+                          disabled={isResolvingLink || !image.trim()}
+                          className="px-3 py-2 rounded-xl bg-[#1BA7D9] hover:bg-[#158db8] disabled:opacity-50 text-white text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 shadow-2xs"
+                          title="Convertir y verificar enlace de imagen"
+                        >
+                          {isResolvingLink ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <Sparkles className="w-3.5 h-3.5" />
+                          )}
+                          <span>Convertir</span>
+                        </button>
                       </div>
+
+                      {/* Live Link Status Feedback */}
+                      {image && (
+                        <div className="mt-2 text-xs">
+                          {linkStatus === 'resolving' && (
+                            <div className="flex items-center gap-1.5 text-amber-700 dark:text-amber-300 font-bold bg-amber-50 dark:bg-amber-950/40 px-3 py-1.5 rounded-xl border border-amber-200 dark:border-amber-800">
+                              <Loader2 className="w-3.5 h-3.5 animate-spin text-amber-500" />
+                              <span>Convirtiendo y verificando enlace a imagen directa funcional...</span>
+                            </div>
+                          )}
+                          {linkStatus === 'valid' && (
+                            <div className="flex items-center gap-1.5 text-emerald-700 dark:text-emerald-300 font-bold bg-emerald-50 dark:bg-emerald-950/40 px-3 py-1.5 rounded-xl border border-emerald-200 dark:border-emerald-800">
+                              <Check className="w-3.5 h-3.5 text-emerald-500" />
+                              <span>¡Enlace funcional y verificado! La imagen se cargó correctamente.</span>
+                            </div>
+                          )}
+                          {linkStatus === 'invalid' && (
+                            <div className="flex items-center gap-1.5 text-rose-700 dark:text-rose-300 font-bold bg-rose-50 dark:bg-rose-950/40 px-3 py-1.5 rounded-xl border border-rose-200 dark:border-rose-800">
+                              <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />
+                              <span>No se pudo cargar la imagen. Si es de Postimages, pulsa «Convertir» o asegúrate de que sea pública.</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     {/* Helpful Tip */}
-                    <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800 text-[11px] text-amber-800 dark:text-amber-300 leading-snug space-y-1">
-                      <p className="font-bold">
-                        💡 ¿Cómo hacer que las fotos cargadas se vean en los teléfonos?
+                    <div className="p-2.5 rounded-xl bg-sky-50 dark:bg-sky-950/40 border border-sky-200 dark:border-sky-800 text-[11px] text-sky-800 dark:text-sky-300 leading-snug space-y-1">
+                      <p className="font-bold flex items-center gap-1">
+                        <Sparkles className="w-3.5 h-3.5 text-[#1BA7D9]" />
+                        <span>Enlaces compatibles automáticamente:</span>
                       </p>
                       <p>
-                        • <strong>Opción 1 (Directa para todos los clientes):</strong> Sube tu foto a un servidor público gratuito como <a href="https://postimages.org" target="_blank" rel="noreferrer" className="underline font-bold text-sky-600 dark:text-sky-400">postimages.org</a> o <a href="https://imgbb.com" target="_blank" rel="noreferrer" className="underline font-bold text-sky-600 dark:text-sky-400">imgbb.com</a> y pega aquí el enlace directo (.jpg/.png).
+                        • <strong>Postimages:</strong> Sube tu foto a <a href="https://postimages.org" target="_blank" rel="noreferrer" className="underline font-bold text-sky-600 dark:text-sky-400">postimages.org</a> y pega cualquier enlace aquí; el sistema lo convierte automáticamente a imagen directa.
                       </p>
                       <p>
-                        • <strong>Opción 2 (Entre tus dispositivos):</strong> Si seleccionas un archivo de tu PC, en el panel pulsa <strong>«Exportar JSON»</strong> y en tu teléfono pulsa <strong>«Importar JSON»</strong>.
+                        • <strong>Google Drive:</strong> Pega cualquier enlace compartido («Cualquier persona con el enlace») y se convertirá a enlace directo de alta velocidad.
                       </p>
                     </div>
                   </div>

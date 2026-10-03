@@ -4,6 +4,7 @@ import { MessageCircle, Plus, Eye, Heart, ChevronRight } from 'lucide-react';
 import { StarRating } from './StarRating';
 import { motion } from 'framer-motion';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
+import { formatDirectImageUrl } from '../utils/imageUrlResolver';
 
 interface ProductCardProps {
   product: Product;
@@ -44,7 +45,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
       >
         {!isReferenceLogo(product.image) ? (
           <img
-            src={product.image}
+            src={formatDirectImageUrl(product.image)}
             alt={product.title}
             loading="lazy"
             className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"

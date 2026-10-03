@@ -3,6 +3,7 @@ import { Product } from '../types';
 import { X, Star, MessageCircle, ShoppingBag, Check, Sparkles, Shield, Truck, ThumbsUp, Send } from 'lucide-react';
 import { StarRating } from './StarRating';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
+import { formatDirectImageUrl } from '../utils/imageUrlResolver';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -110,7 +111,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
         <div className="md:w-1/2 bg-white dark:bg-slate-900 relative min-h-[260px] md:min-h-full flex items-center justify-center p-6">
           {!isReferenceLogo(product.image) ? (
             <img
-              src={product.image}
+              src={formatDirectImageUrl(product.image)}
               alt={product.title}
               className="w-full h-full max-h-[380px] md:max-h-full object-cover rounded-2xl shadow-inner"
               onError={(e) => {

@@ -1,5 +1,6 @@
 import { Product } from '../types';
 import { isReferenceLogo, CORALINK_LOGO_URL } from './logoConstants';
+import { formatDirectImageUrl } from './imageUrlResolver';
 
 /**
  * Checks whether a product has been customized by the user
@@ -65,10 +66,10 @@ export function mergePreservingCustomizations(
 
     const customized = isProductCustomized(existing, def);
     if (customized) {
-      // Keep existing customization, but ensure if image was reference logo it gets updated to new reference logo
+      const formatted = existing.image ? formatDirectImageUrl(existing.image) : '';
       const finalImage =
-        existing.image && !isReferenceLogo(existing.image)
-          ? existing.image
+        formatted && !isReferenceLogo(formatted)
+          ? formatted
           : CORALINK_LOGO_URL;
 
       return {

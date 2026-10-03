@@ -225,12 +225,89 @@ app.get('/api/products', (req, res) => {
   res.json({ success: true, products });
 });
 
+// Resolve viewer page links (Postimages, ImgBB, etc.) to raw direct images
+app.get('/api/resolve-image', async (req, res) => {
+  const rawUrl = ((req.query.url as string) || '').trim();
+  if (!rawUrl) {
+    return res.status(400).json({ success: false, message: 'Missing URL parameter' });
+  }
+
+  try {
+    // If it's postimg.cc or postimages.org viewer page
+    if (rawUrl.includes('postimg.cc/') || rawUrl.includes('postimages.org/')) {
+      const response = await fetch(rawUrl, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
+      if (response.ok) {
+        const html = await response.text();
+        // Look for og:image
+        const ogMatch =
+          html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i) ||
+          html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i);
+        if (ogMatch && ogMatch[1]) {
+          return res.json({ success: true, directUrl: ogMatch[1] });
+        }
+        // Fallback: look for i.postimg.cc image link in HTML
+        const directMatch = html.match(/(https:\/\/i\.postimg\.cc\/[a-zA-Z0-9_\-]+\/[^"'\s<]+)/i);
+        if (directMatch && directMatch[1]) {
+          return res.json({ success: true, directUrl: directMatch[1] });
+        }
+      }
+    }
+
+    // If it's ibb.co viewer page
+    if (rawUrl.includes('ibb.co/')) {
+      const response = await fetch(rawUrl, {
+        headers: {
+          'User-Agent':
+            'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        },
+      });
+      if (response.ok) {
+        const html = await response.text();
+        const ogMatch =
+          html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i) ||
+          html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i);
+        if (ogMatch && ogMatch[1]) {
+          return res.json({ success: true, directUrl: ogMatch[1] });
+        }
+      }
+    }
+
+    return res.json({ success: true, directUrl: rawUrl });
+  } catch (err: any) {
+    console.error('Error in /api/resolve-image:', err.message);
+    return res.json({ success: false, directUrl: rawUrl });
+  }
+});
+
 app.post('/api/products', (req, res) => {
   const { products } = req.body;
   if (!products || !Array.isArray(products)) {
     return res.status(400).json({ success: false, message: 'Invalid products array' });
   }
   const saved = writeStoredProducts(products);
+
+  // Also update src/data/initialProducts.ts so changes are permanent in the source code!
+  try {
+    const initialProductsPath = path.join(__dirname, 'src', 'data', 'initialProducts.ts');
+    if (fs.existsSync(initialProductsPath)) {
+      const code = `import { Product } from '../types';
+
+export const CATALOG_VERSION = "${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}";
+
+export const INITIAL_PRODUCTS: Product[] = ${JSON.stringify(products, null, 2)};
+`;
+      fs.writeFileSync(initialProductsPath, code, 'utf-8');
+      console.log('Successfully updated src/data/initialProducts.ts on disk with latest products!');
+    }
+  } catch (e) {
+    console.error('Could not update initialProducts.ts:', e);
+  }
+
   if (saved) {
     return res.json({ success: true, message: 'Products saved successfully' });
   } else {
