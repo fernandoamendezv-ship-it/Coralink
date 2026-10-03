@@ -157,23 +157,8 @@ export function usePWAInstall() {
           });
         });
 
-        // Whenever the user switches back to the app on their phone, check for updates
-        const handleVisibilityChange = () => {
-          if (document.visibilityState === 'visible') {
-            navigator.serviceWorker.getRegistration().then((reg) => {
-              reg?.update().catch(() => {});
-            });
-          }
-        };
-        document.addEventListener('visibilitychange', handleVisibilityChange);
-
-        // Controller change listener
-        let refreshed = false;
+        // Controller change listener: update SW state without auto-reloading page
         const handleControllerChange = () => {
-          if (!refreshed && hasUpdate) {
-            refreshed = true;
-            window.location.reload();
-          }
           checkSW();
         };
         navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
@@ -181,7 +166,6 @@ export function usePWAInstall() {
         return () => {
           window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
           window.removeEventListener('appinstalled', handleAppInstalled);
-          document.removeEventListener('visibilitychange', handleVisibilityChange);
           navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
         };
       }

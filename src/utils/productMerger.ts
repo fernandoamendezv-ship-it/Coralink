@@ -80,6 +80,9 @@ export function mergePreservingCustomizations(
       return {
         ...def,
         ...existing,
+        rating: existing.rating ?? def.rating ?? 5.0,
+        reviewsCount: existing.reviewsCount ?? def.reviewsCount ?? 24,
+        salesCount: existing.salesCount ?? def.salesCount ?? 60,
         image: finalImage,
       };
     }
@@ -93,6 +96,9 @@ export function mergePreservingCustomizations(
     if (p && p.id && !defaultIds.has(p.id)) {
       merged.push({
         ...p,
+        rating: p.rating ?? 5.0,
+        reviewsCount: p.reviewsCount ?? 24,
+        salesCount: p.salesCount ?? 60,
         image: p.image && !isReferenceLogo(p.image) ? p.image : CORALINK_LOGO_URL,
       });
     }

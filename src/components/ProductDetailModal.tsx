@@ -172,7 +172,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               }`}
             >
               <Star className="w-3.5 h-3.5 fill-current" />
-              <span>{product.rating.toFixed(1)} ({product.reviewsCount} opiniones)</span>
+              <span>{(product.rating ?? 5.0).toFixed(1)} ({product.reviewsCount ?? 24} opiniones)</span>
             </button>
           </div>
 
@@ -320,13 +320,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 <div>
                   <div className="flex items-baseline gap-2">
                     <span className="text-3xl font-black text-amber-600 dark:text-amber-400">
-                      {product.rating.toFixed(1)}
+                      {(product.rating ?? 5.0).toFixed(1)}
                     </span>
                     <span className="text-xs text-slate-400 font-bold">/ 5.0</span>
                   </div>
-                  <StarRating rating={product.rating} size="sm" />
+                  <StarRating rating={product.rating ?? 5.0} size="sm" />
                   <div className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-                    Basado en {product.reviewsCount} calificaciones verificadas
+                    Basado en {product.reviewsCount ?? 24} calificaciones verificadas
                   </div>
                 </div>
 

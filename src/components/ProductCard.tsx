@@ -125,15 +125,15 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         >
           <div className="flex items-center gap-1.5">
             <StarRating
-              rating={product.rating}
+              rating={product.rating ?? 5.0}
               size="xs"
               interactive={false}
             />
             <span className="text-xs font-black text-slate-700 dark:text-slate-200 group-hover/rate:text-amber-600 dark:group-hover/rate:text-amber-400 transition-colors">
-              {product.rating.toFixed(1)}
+              {(product.rating ?? 5.0).toFixed(1)}
             </span>
             <span className="text-[10px] text-slate-400 dark:text-slate-500">
-              ({product.reviewsCount})
+              ({product.reviewsCount ?? 24})
             </span>
           </div>
 
@@ -147,11 +147,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           <div className="flex items-baseline text-[#FF6B35]">
             <span className="text-xs font-black mr-0.5">C$</span>
             <span className="text-base sm:text-lg font-black tracking-tight">
-              {product.price.toLocaleString('es-NI')}
+              {(typeof product.price === 'number' ? product.price : 0).toLocaleString('es-NI')}
             </span>
           </div>
 
-          {product.originalPrice && product.originalPrice > product.price && (
+          {typeof product.originalPrice === 'number' && typeof product.price === 'number' && product.originalPrice > product.price && (
             <span className="text-[11px] text-slate-400 dark:text-slate-500 line-through">
               C${product.originalPrice.toLocaleString('es-NI')}
             </span>

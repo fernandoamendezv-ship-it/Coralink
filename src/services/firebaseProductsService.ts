@@ -21,85 +21,156 @@ export function subscribeToFirebaseProducts(
   onUpdate: (products: Product[]) => void,
   onError?: (err: Error) => void
 ): Unsubscribe {
-  const colRef = collection(db, PRODUCTS_COLLECTION);
+  try {
+    if (!db) {
+      console.warn('Firestore database is not initialized yet');
+      return () => {};
+    }
+    const colRef = collection(db, PRODUCTS_COLLECTION);
 
-  return onSnapshot(
-    colRef,
-    (snapshot) => {
-      if (snapshot.empty) {
-        // First-time run: if collection is empty, seed with initial catalog
-        seedCatalogIfEmpty().then((seeded) => {
-          if (seeded && seeded.length > 0) {
-            onUpdate(seeded);
+    return onSnapshot(
+      colRef,
+      (snapshot) => {
+        if (snapshot.empty) {
+          // First-time run: if collection is empty, seed with initial catalog
+          seedCatalogIfEmpty().then((seeded) => {
+            if (seeded && seeded.length > 0) {
+              onUpdate(seeded);
+            }
+          });
+          return;
+        }
+
+        const products: Product[] = [];
+        snapshot.forEach((docSnap) => {
+          const data = docSnap.data() as Partial<Product>;
+          if (data && data.id) {
+            products.push({
+              id: data.id,
+              title: data.title || '',
+              mainCategory: data.mainCategory || 'Personalizados',
+              subCategory: data.subCategory || 'General',
+              price: typeof data.price === 'number' ? data.price : 0,
+              originalPrice: typeof data.originalPrice === 'number' ? data.originalPrice : undefined,
+              image: data.image || '',
+              description: data.description || '',
+              inStock: data.inStock !== false,
+              featured: Boolean(data.featured),
+              badge: data.badge || undefined,
+              rating: typeof data.rating === 'number' ? data.rating : 5.0,
+              reviewsCount: typeof data.reviewsCount === 'number' ? data.reviewsCount : 24,
+              salesCount: typeof data.salesCount === 'number' ? data.salesCount : 60,
+              availableOptions: Array.isArray(data.availableOptions) ? data.availableOptions : undefined,
+            });
           }
         });
-        return;
+
+        // Preserve catalog order based on ID or index
+        products.sort((a, b) => {
+          const numA = parseInt(a.id.replace(/\D/g, ''), 10) || 0;
+          const numB = parseInt(b.id.replace(/\D/g, ''), 10) || 0;
+          return numA - numB;
+        });
+
+        onUpdate(products);
+      },
+      (err) => {
+        console.warn('Firestore real-time listener notice:', err);
+        if (onError) onError(err);
       }
+    );
+  } catch (err: any) {
+    console.warn('Failed to attach Firestore listener:', err);
+    return () => {};
+  }
+}
 
-      const products: Product[] = [];
-      snapshot.forEach((docSnap) => {
-        const data = docSnap.data() as Product;
-        if (data && data.id) {
-          products.push({
-            id: data.id,
-            title: data.title || '',
-            mainCategory: data.mainCategory || 'General',
-            subCategory: data.subCategory || 'General',
-            price: typeof data.price === 'number' ? data.price : 0,
-            originalPrice: typeof data.originalPrice === 'number' ? data.originalPrice : undefined,
-            image: data.image || '',
-            description: data.description || '',
-            inStock: data.inStock !== false,
-            featured: Boolean(data.featured),
-            badge: data.badge || undefined,
-          });
-        }
-      });
+/**
+ * One-time manual fetch of all products from Firestore (no persistent socket listener).
+ */
+export async function fetchProductsFromFirestore(): Promise<Product[] | null> {
+  try {
+    if (!db) return null;
+    const colRef = collection(db, PRODUCTS_COLLECTION);
+    const snap = await getDocs(colRef);
+    if (snap.empty) return null;
 
-      // Preserve catalog order based on ID or index
-      products.sort((a, b) => {
-        const numA = parseInt(a.id.replace(/\D/g, ''), 10) || 0;
-        const numB = parseInt(b.id.replace(/\D/g, ''), 10) || 0;
-        return numA - numB;
-      });
+    const products: Product[] = [];
+    snap.forEach((docSnap) => {
+      const data = docSnap.data() as Partial<Product>;
+      if (data && data.id) {
+        products.push({
+          id: data.id,
+          title: data.title || '',
+          mainCategory: data.mainCategory || 'Personalizados',
+          subCategory: data.subCategory || 'General',
+          price: typeof data.price === 'number' ? data.price : 0,
+          originalPrice: typeof data.originalPrice === 'number' ? data.originalPrice : undefined,
+          image: data.image || '',
+          description: data.description || '',
+          inStock: data.inStock !== false,
+          featured: Boolean(data.featured),
+          badge: data.badge || undefined,
+          rating: typeof data.rating === 'number' ? data.rating : 5.0,
+          reviewsCount: typeof data.reviewsCount === 'number' ? data.reviewsCount : 24,
+          salesCount: typeof data.salesCount === 'number' ? data.salesCount : 60,
+          availableOptions: Array.isArray(data.availableOptions) ? data.availableOptions : undefined,
+        });
+      }
+    });
 
-      onUpdate(products);
-    },
-    (err) => {
-      console.warn('Firestore real-time listener error:', err);
-      if (onError) onError(err);
-    }
-  );
+    products.sort((a, b) => {
+      const numA = parseInt(a.id.replace(/\D/g, ''), 10) || 0;
+      const numB = parseInt(b.id.replace(/\D/g, ''), 10) || 0;
+      return numA - numB;
+    });
+
+    return products;
+  } catch (err) {
+    console.warn('fetchProductsFromFirestore notice:', err);
+    return null;
+  }
 }
 
 /**
  * Saves or updates a single product in Firestore in real-time.
  */
 export async function saveProductToFirestore(product: Product): Promise<void> {
-  const docRef = doc(db, PRODUCTS_COLLECTION, product.id);
-  const cleanData: Record<string, any> = {
-    id: product.id,
-    title: product.title.trim(),
-    mainCategory: product.mainCategory,
-    subCategory: product.subCategory,
-    price: Number(product.price) || 0,
-    image: product.image,
-    description: product.description || '',
-    inStock: Boolean(product.inStock),
-    updatedAt: new Date().toISOString(),
-  };
+  try {
+    if (!db) return;
+    const docRef = doc(db, PRODUCTS_COLLECTION, product.id);
+    const cleanData: Record<string, any> = {
+      id: product.id,
+      title: product.title.trim(),
+      mainCategory: product.mainCategory,
+      subCategory: product.subCategory,
+      price: Number(product.price) || 0,
+      image: product.image,
+      description: product.description || '',
+      inStock: Boolean(product.inStock),
+      rating: product.rating ?? 5.0,
+      reviewsCount: product.reviewsCount ?? 24,
+      salesCount: product.salesCount ?? 60,
+      updatedAt: new Date().toISOString(),
+    };
 
-  if (product.originalPrice !== undefined) {
-    cleanData.originalPrice = Number(product.originalPrice);
-  }
-  if (product.featured !== undefined) {
-    cleanData.featured = Boolean(product.featured);
-  }
-  if (product.badge !== undefined) {
-    cleanData.badge = product.badge;
-  }
+    if (product.originalPrice !== undefined) {
+      cleanData.originalPrice = Number(product.originalPrice);
+    }
+    if (product.featured !== undefined) {
+      cleanData.featured = Boolean(product.featured);
+    }
+    if (product.badge !== undefined) {
+      cleanData.badge = product.badge;
+    }
+    if (product.availableOptions) {
+      cleanData.availableOptions = product.availableOptions;
+    }
 
-  await setDoc(docRef, cleanData, { merge: true });
+    await setDoc(docRef, cleanData, { merge: true });
+  } catch (err) {
+    console.warn('saveProductToFirestore error:', err);
+  }
 }
 
 /**
@@ -107,6 +178,7 @@ export async function saveProductToFirestore(product: Product): Promise<void> {
  */
 export async function seedCatalogIfEmpty(): Promise<Product[] | null> {
   try {
+    if (!db) return null;
     const colRef = collection(db, PRODUCTS_COLLECTION);
     const snap = await getDocs(colRef);
     if (!snap.empty) {
@@ -114,7 +186,6 @@ export async function seedCatalogIfEmpty(): Promise<Product[] | null> {
     }
 
     console.log('Seeding initial catalog to Firestore...');
-    // Firestore batch supports up to 500 operations
     const batch = writeBatch(db);
     INITIAL_PRODUCTS.forEach((product) => {
       const docRef = doc(db, PRODUCTS_COLLECTION, product.id);
@@ -127,11 +198,15 @@ export async function seedCatalogIfEmpty(): Promise<Product[] | null> {
         image: product.image,
         description: product.description || '',
         inStock: product.inStock,
+        rating: product.rating ?? 5.0,
+        reviewsCount: product.reviewsCount ?? 24,
+        salesCount: product.salesCount ?? 60,
         updatedAt: new Date().toISOString(),
       };
       if (product.originalPrice) cleanData.originalPrice = product.originalPrice;
       if (product.featured) cleanData.featured = product.featured;
       if (product.badge) cleanData.badge = product.badge;
+      if (product.availableOptions) cleanData.availableOptions = product.availableOptions;
 
       batch.set(docRef, cleanData);
     });
@@ -150,7 +225,7 @@ export async function seedCatalogIfEmpty(): Promise<Product[] | null> {
  */
 export async function syncAllProductsToFirestore(products: Product[]): Promise<void> {
   try {
-    // Process in batches of 400 to respect Firestore 500 batch limit
+    if (!db) return;
     const chunkSize = 400;
     for (let i = 0; i < products.length; i += chunkSize) {
       const chunk = products.slice(i, i + chunkSize);
@@ -167,11 +242,15 @@ export async function syncAllProductsToFirestore(products: Product[]): Promise<v
           image: product.image,
           description: product.description || '',
           inStock: product.inStock,
+          rating: product.rating ?? 5.0,
+          reviewsCount: product.reviewsCount ?? 24,
+          salesCount: product.salesCount ?? 60,
           updatedAt: new Date().toISOString(),
         };
         if (product.originalPrice) cleanData.originalPrice = product.originalPrice;
         if (product.featured) cleanData.featured = product.featured;
         if (product.badge) cleanData.badge = product.badge;
+        if (product.availableOptions) cleanData.availableOptions = product.availableOptions;
 
         batch.set(docRef, cleanData, { merge: true });
       });

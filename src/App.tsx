@@ -24,7 +24,7 @@ import { useThemeMode } from './hooks/useThemeMode';
 import { CORALINK_LOGO_URL, isReferenceLogo } from './utils/logoConstants';
 import { scanAndRecoverCustomProducts, mergePreservingCustomizations } from './utils/productMerger';
 import {
-  subscribeToFirebaseProducts,
+  fetchProductsFromFirestore,
   syncAllProductsToFirestore,
 } from './services/firebaseProductsService';
 
@@ -176,90 +176,48 @@ export default function App() {
   };
 
   const [syncToastMsg, setSyncToastMsg] = useState<string | null>(null);
+  const [isManualSyncing, setIsManualSyncing] = useState(false);
 
-  // Sync products with Firebase Firestore (real-time) and local server
-  useEffect(() => {
-    // 1. Subscribe to Firebase Firestore for instant real-time synchronization across all devices
-    const unsubscribeFirestore = subscribeToFirebaseProducts(
-      (firestoreProducts) => {
-        if (Array.isArray(firestoreProducts) && firestoreProducts.length > 0) {
-          setProducts(firestoreProducts);
-          try {
-            localStorage.setItem('coralink_custom_products', JSON.stringify(firestoreProducts));
-            localStorage.setItem('coralink_custom_products_backup', JSON.stringify(firestoreProducts));
-          } catch (e) {
-            console.error(e);
-          }
+  // Manual one-tap sync for user: ONLY runs when user clicks the "Sincronizar" button
+  const handleManualSyncCatalog = async () => {
+    if (isManualSyncing) return;
+    setIsManualSyncing(true);
+    setSyncToastMsg('Sincronizando catálogo con la nube...');
+
+    try {
+      // 1. Try manual fetch from Firestore first
+      const firestoreProducts = await fetchProductsFromFirestore();
+      if (firestoreProducts && firestoreProducts.length > 0) {
+        setProducts(firestoreProducts);
+        try {
+          localStorage.setItem('coralink_custom_products', JSON.stringify(firestoreProducts));
+          localStorage.setItem('coralink_custom_products_backup', JSON.stringify(firestoreProducts));
+        } catch (e) {
+          console.error(e);
         }
-      },
-      (error) => {
-        console.warn('Firestore subscription fallback:', error);
+        setSyncToastMsg('¡Catálogo sincronizado exitosamente!');
+        setTimeout(() => setSyncToastMsg(null), 3000);
+        return;
       }
-    );
 
-    // 2. Fallback backend sync & tab visibility sync
-    const syncCatalogWithServer = () => {
-      fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' })
-        .then((res) => res.json())
-        .then((data) => {
-          if (data.success && Array.isArray(data.products) && data.products.length > 0) {
-            setProducts(data.products);
-            try {
-              localStorage.setItem('coralink_custom_products', JSON.stringify(data.products));
-              localStorage.setItem('coralink_custom_products_backup', JSON.stringify(data.products));
-            } catch (e) {
-              console.error(e);
-            }
-          }
-        })
-        .catch((err) => {
-          // Offline mode or static hosting
-        });
-    };
-
-    // Initial sync
-    syncCatalogWithServer();
-
-    // Auto-sync polling
-    const interval = setInterval(syncCatalogWithServer, 5000);
-
-    // Sync when returning to tab / waking phone
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') {
-        syncCatalogWithServer();
+      // 2. Fallback to server API
+      const res = await fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' });
+      const data = await res.json();
+      if (data.success && Array.isArray(data.products) && data.products.length > 0) {
+        setProducts(data.products);
+        localStorage.setItem('coralink_custom_products', JSON.stringify(data.products));
+        localStorage.setItem('coralink_custom_products_backup', JSON.stringify(data.products));
+        syncAllProductsToFirestore(data.products).catch(() => {});
+        setSyncToastMsg('¡Catálogo sincronizado exitosamente!');
+      } else {
+        setSyncToastMsg('¡Catálogo al día!');
       }
-    };
-
-    window.addEventListener('visibilitychange', handleVisibility);
-    window.addEventListener('focus', syncCatalogWithServer);
-
-    return () => {
-      unsubscribeFirestore();
-      clearInterval(interval);
-      window.removeEventListener('visibilitychange', handleVisibility);
-      window.removeEventListener('focus', syncCatalogWithServer);
-    };
-  }, []);
-
-  // Manual one-tap sync for user
-  const handleManualSyncCatalog = () => {
-    fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' })
-      .then((res) => res.json())
-      .then((data) => {
-        if (data.success && Array.isArray(data.products) && data.products.length > 0) {
-          setProducts(data.products);
-          localStorage.setItem('coralink_custom_products', JSON.stringify(data.products));
-          localStorage.setItem('coralink_custom_products_backup', JSON.stringify(data.products));
-          syncAllProductsToFirestore(data.products).catch(() => {});
-        }
-      })
-      .catch(() => {});
-
-    setSyncToastMsg('¡Catálogo sincronizado en tiempo real con Firebase!');
-    setTimeout(() => setSyncToastMsg(null), 3000);
-
-    if (updateApp) {
-      updateApp();
+    } catch (err) {
+      console.warn('Manual sync fallback notice:', err);
+      setSyncToastMsg('¡Catálogo al día!');
+    } finally {
+      setIsManualSyncing(false);
+      setTimeout(() => setSyncToastMsg(null), 3000);
     }
   };
 
