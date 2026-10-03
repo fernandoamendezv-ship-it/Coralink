@@ -8,7 +8,9 @@ var __dirname = path.dirname(__filename);
 var app = express();
 var PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3e3;
 var isProduction = process.env.NODE_ENV === "production";
-app.use(express.json({ limit: "10mb" }));
+app.use(express.json({ limit: "50mb" }));
+app.use(express.urlencoded({ extended: true, limit: "50mb" }));
+app.use("/uploads", express.static(path.join(__dirname, "public", "uploads")));
 var DATA_FILE = path.join(__dirname, "coralink-products-data.json");
 function readStoredProducts() {
   try {
@@ -207,17 +209,150 @@ app.get("/api/simulate-500", (req, res, next) => {
   next(err);
 });
 app.get("/api/products", (req, res) => {
+  res.set("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+  res.set("Pragma", "no-cache");
+  res.set("Expires", "0");
   const products = readStoredProducts();
   res.json({ success: true, products });
 });
-app.post("/api/products", (req, res) => {
+app.get("/api/resolve-image", async (req, res) => {
+  const rawUrl = (req.query.url || "").trim();
+  if (!rawUrl) {
+    return res.status(400).json({ success: false, message: "Missing URL parameter" });
+  }
+  try {
+    if (rawUrl.includes("postimg.cc/") || rawUrl.includes("postimages.org/")) {
+      const response = await fetch(rawUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      });
+      if (response.ok) {
+        const html = await response.text();
+        const ogMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i) || html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i);
+        if (ogMatch && ogMatch[1]) {
+          return res.json({ success: true, directUrl: ogMatch[1] });
+        }
+        const directMatch = html.match(/(https:\/\/i\.postimg\.cc\/[a-zA-Z0-9_\-]+\/[^"'\s<]+)/i);
+        if (directMatch && directMatch[1]) {
+          return res.json({ success: true, directUrl: directMatch[1] });
+        }
+      }
+    }
+    if (rawUrl.includes("ibb.co/")) {
+      const response = await fetch(rawUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        }
+      });
+      if (response.ok) {
+        const html = await response.text();
+        const ogMatch = html.match(/<meta\s+property=["']og:image["']\s+content=["']([^"']+)["']/i) || html.match(/<meta\s+content=["']([^"']+)["']\s+property=["']og:image["']/i);
+        if (ogMatch && ogMatch[1]) {
+          return res.json({ success: true, directUrl: ogMatch[1] });
+        }
+      }
+    }
+    return res.json({ success: true, directUrl: rawUrl });
+  } catch (err) {
+    console.error("Error in /api/resolve-image:", err.message);
+    return res.json({ success: false, directUrl: rawUrl });
+  }
+});
+app.post("/api/upload", (req, res) => {
+  try {
+    const { dataUrl, productId } = req.body;
+    if (!dataUrl || typeof dataUrl !== "string") {
+      return res.status(400).json({ success: false, message: "Falta la imagen" });
+    }
+    const matches = dataUrl.match(/^data:([A-Za-z-+/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return res.status(400).json({ success: false, message: "Formato de imagen inv\xE1lido" });
+    }
+    const mimeType = matches[1];
+    const base64Data = matches[2];
+    const buffer = Buffer.from(base64Data, "base64");
+    let ext = "jpg";
+    if (mimeType.includes("png")) ext = "png";
+    else if (mimeType.includes("webp")) ext = "webp";
+    else if (mimeType.includes("svg")) ext = "svg";
+    const safeId = (productId || "prod").replace(/[^a-zA-Z0-9_-]/g, "");
+    const safeName = `foto_${safeId}_${Date.now()}.${ext}`;
+    const uploadsDir = path.join(__dirname, "public", "uploads");
+    if (!fs.existsSync(uploadsDir)) {
+      fs.mkdirSync(uploadsDir, { recursive: true });
+    }
+    const filePath = path.join(uploadsDir, safeName);
+    fs.writeFileSync(filePath, buffer);
+    const distPath = path.join(__dirname, "dist", "uploads");
+    try {
+      if (fs.existsSync(path.join(__dirname, "dist"))) {
+        if (!fs.existsSync(distPath)) {
+          fs.mkdirSync(distPath, { recursive: true });
+        }
+        fs.writeFileSync(path.join(distPath, safeName), buffer);
+      }
+    } catch (e) {
+      console.warn("Could not sync to dist/uploads:", e);
+    }
+    const url = `/uploads/${safeName}`;
+    return res.json({ success: true, url, filename: safeName });
+  } catch (err) {
+    console.error("Error uploading image:", err);
+    return res.status(500).json({ success: false, message: err.message });
+  }
+});
+app.post("/api/products", async (req, res) => {
   const { products } = req.body;
   if (!products || !Array.isArray(products)) {
     return res.status(400).json({ success: false, message: "Invalid products array" });
   }
+  for (const p of products) {
+    if (p && p.image && (p.image.includes("googleusercontent.com") || p.image.includes("drive.google.com"))) {
+      try {
+        const fileRes = await fetch(p.image, {
+          headers: {
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+          }
+        });
+        if (fileRes.ok) {
+          const arrayBuf = await fileRes.arrayBuffer();
+          const buffer = Buffer.from(arrayBuf);
+          const uploadsDir = path.join(__dirname, "public", "uploads");
+          if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
+          const safeName = `foto_${p.id || "p"}_${Date.now()}.jpg`;
+          fs.writeFileSync(path.join(uploadsDir, safeName), buffer);
+          const distDir = path.join(__dirname, "dist", "uploads");
+          if (fs.existsSync(path.join(__dirname, "dist"))) {
+            if (!fs.existsSync(distDir)) fs.mkdirSync(distDir, { recursive: true });
+            fs.writeFileSync(path.join(distDir, safeName), buffer);
+          }
+          p.image = `/uploads/${safeName}`;
+          console.log(`Auto-cached drive image for product ${p.id} to /uploads/${safeName}`);
+        }
+      } catch (err) {
+        console.warn("Could not auto-cache drive image:", err);
+      }
+    }
+  }
   const saved = writeStoredProducts(products);
+  try {
+    const initialProductsPath = path.join(__dirname, "src", "data", "initialProducts.ts");
+    if (fs.existsSync(initialProductsPath)) {
+      const code = `import { Product } from '../types';
+
+export const CATALOG_VERSION = "${(/* @__PURE__ */ new Date()).toISOString().replace(/[-:T.]/g, "").slice(0, 14)}";
+
+export const INITIAL_PRODUCTS: Product[] = ${JSON.stringify(products, null, 2)};
+`;
+      fs.writeFileSync(initialProductsPath, code, "utf-8");
+      console.log("Successfully updated src/data/initialProducts.ts on disk with latest products!");
+    }
+  } catch (e) {
+    console.error("Could not update initialProducts.ts:", e);
+  }
   if (saved) {
-    return res.json({ success: true, message: "Products saved successfully" });
+    return res.json({ success: true, message: "Products saved successfully", products });
   } else {
     throw new Error("Failed to write products to storage");
   }
