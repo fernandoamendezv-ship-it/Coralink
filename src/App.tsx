@@ -493,6 +493,64 @@ export default function App() {
     return products.filter((p) => p.originalPrice && p.originalPrice > p.price).slice(0, 5);
   }, [products]);
 
+  // Cyclic horizontal carousel for Ofertas Flash
+  const [isFlashHovered, setIsFlashHovered] = useState(false);
+  const [flashActiveIndex, setFlashActiveIndex] = useState(0);
+
+  const handleScrollFlashLeft = () => {
+    const container = flashScrollRef.current;
+    if (!container) return;
+    const itemWidth = (container.firstElementChild?.clientWidth || 210) + 16;
+    if (container.scrollLeft <= 25) {
+      container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
+    } else {
+      container.scrollBy({ left: -itemWidth, behavior: 'smooth' });
+    }
+  };
+
+  const handleScrollFlashRight = () => {
+    const container = flashScrollRef.current;
+    if (!container) return;
+    const maxScroll = container.scrollWidth - container.clientWidth;
+    const itemWidth = (container.firstElementChild?.clientWidth || 210) + 16;
+    if (container.scrollLeft >= maxScroll - 25) {
+      container.scrollTo({ left: 0, behavior: 'smooth' });
+    } else {
+      container.scrollBy({ left: itemWidth, behavior: 'smooth' });
+    }
+  };
+
+  // Auto-scroll loop for cyclical movement
+  useEffect(() => {
+    if (flashDealProducts.length <= 1 || isFlashHovered) return;
+
+    const timer = setInterval(() => {
+      const container = flashScrollRef.current;
+      if (!container) return;
+
+      const maxScroll = container.scrollWidth - container.clientWidth;
+      if (maxScroll <= 0) return;
+
+      // When reaching or nearing the end, cycle smoothly back to start
+      if (container.scrollLeft >= maxScroll - 25) {
+        container.scrollTo({ left: 0, behavior: 'smooth' });
+      } else {
+        const itemWidth = (container.firstElementChild?.clientWidth || 210) + 16;
+        container.scrollBy({ left: itemWidth, behavior: 'smooth' });
+      }
+    }, 3200);
+
+    return () => clearInterval(timer);
+  }, [flashDealProducts.length, isFlashHovered]);
+
+  const handleFlashScroll = () => {
+    const container = flashScrollRef.current;
+    if (!container) return;
+    const itemWidth = (container.firstElementChild?.clientWidth || 210) + 16;
+    const idx = Math.round(container.scrollLeft / itemWidth);
+    setFlashActiveIndex(Math.min(flashDealProducts.length - 1, Math.max(0, idx)));
+  };
+
   // Bottom Navigation Handler
   const handleBottomTabChange = (tab: 'inicio' | 'buscar' | 'favoritos' | 'pedido') => {
     setActiveBottomTab(tab);
@@ -631,13 +689,11 @@ export default function App() {
                   </span>
                 </div>
 
-                {/* Horizontal scroll controls */}
+                {/* Horizontal scroll controls (Cyclic) */}
                 <div className="flex items-center gap-1.5">
                   <button
                     type="button"
-                    onClick={() => {
-                      flashScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' });
-                    }}
+                    onClick={handleScrollFlashLeft}
                     className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
                     title="Desplazar a la izquierda"
                   >
@@ -645,9 +701,7 @@ export default function App() {
                   </button>
                   <button
                     type="button"
-                    onClick={() => {
-                      flashScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' });
-                    }}
+                    onClick={handleScrollFlashRight}
                     className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
                     title="Desplazar a la derecha"
                   >
@@ -656,9 +710,14 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Flash Deals Horizontal Carousel (Exactly up to 5 products) */}
+              {/* Flash Deals Horizontal Carousel (Cyclic / Auto-loop) */}
               <div
                 ref={flashScrollRef}
+                onMouseEnter={() => setIsFlashHovered(true)}
+                onMouseLeave={() => setIsFlashHovered(false)}
+                onTouchStart={() => setIsFlashHovered(true)}
+                onTouchEnd={() => setIsFlashHovered(false)}
+                onScroll={handleFlashScroll}
                 className="flex overflow-x-auto gap-3 sm:gap-4 pb-3 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0"
               >
                 {flashDealProducts.map((product, idx) => (
@@ -678,6 +737,30 @@ export default function App() {
                   </div>
                 ))}
               </div>
+
+              {/* Cyclic pagination dot indicators */}
+              {flashDealProducts.length > 1 && (
+                <div className="flex items-center justify-center gap-1.5 mt-2">
+                  {flashDealProducts.map((_, i) => (
+                    <button
+                      key={i}
+                      type="button"
+                      onClick={() => {
+                        const container = flashScrollRef.current;
+                        if (!container) return;
+                        const itemWidth = (container.firstElementChild?.clientWidth || 210) + 16;
+                        container.scrollTo({ left: i * itemWidth, behavior: 'smooth' });
+                      }}
+                      className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
+                        flashActiveIndex === i
+                          ? 'w-6 bg-[#FF6B35]'
+                          : 'w-1.5 bg-slate-300 dark:bg-slate-700 hover:bg-slate-400'
+                      }`}
+                      aria-label={`Ver oferta ${i + 1}`}
+                    />
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -686,12 +769,7 @@ export default function App() {
             <div className="flex items-center justify-between gap-2 mb-3.5 px-0.5">
               <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-bold">
                 <span>
-                  {selectedCategory === 'Todo'
-                    ? 'Todos los Productos (Personalizados)'
-                    : selectedCategory}
-                  <span className="text-slate-400 font-normal ml-1.5">
-                    ({filteredProducts.length} disponibles)
-                  </span>
+                  {selectedCategory === 'Todo' ? 'Todos los Productos' : selectedCategory}
                 </span>
                 {(selectedCategory !== 'Todo' || selectedSubCategory !== 'Todas' || searchQuery) && (
                   <button
@@ -705,12 +783,6 @@ export default function App() {
                     Ver Todo
                   </button>
                 )}
-              </div>
-
-              {/* Currency badge */}
-              <div className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold">
-                <span>Moneda:</span>
-                <span className="text-[#FF6B35] font-black">C$ (Córdobas)</span>
               </div>
             </div>
 

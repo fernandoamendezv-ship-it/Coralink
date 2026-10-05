@@ -139,9 +139,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               {product.badge}
             </div>
           )}
-          <div className="absolute bottom-4 left-4 px-3 py-1 rounded-full bg-white/95 dark:bg-slate-800/95 backdrop-blur-xs text-[#0B2545] dark:text-slate-100 text-xs font-bold shadow-md">
-            {product.mainCategory} • {product.subCategory}
-          </div>
         </div>
 
         {/* Right Column: Information & Reviews Tabs */}

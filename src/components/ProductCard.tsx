@@ -92,11 +92,6 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </button>
         )}
 
-        {/* Subcategory Pill (Bottom Left of image) */}
-        <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-full bg-black/60 backdrop-blur-xs text-white text-[9px] font-semibold">
-          {product.subCategory}
-        </div>
-
         {/* Quick View Overlay on Hover */}
         <div className="absolute inset-0 bg-[#0B2545]/30 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2 pointer-events-none">
           <span className="px-3 py-1.5 rounded-full bg-white dark:bg-slate-800 text-[#0B2545] dark:text-white text-xs font-bold shadow-md flex items-center gap-1.5 transform translate-y-2 group-hover:translate-y-0 transition-transform">
