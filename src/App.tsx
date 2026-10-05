@@ -462,13 +462,13 @@ export default function App() {
 
         // Default or featured: For 'Personalizados', order A-Z by subCategory, then title A-Z
         if (a.mainCategory === 'Personalizados' && b.mainCategory === 'Personalizados') {
-          const subComparison = (a.subCategory || '').localeCompare(
-            b.subCategory || '',
+          const subComparison = (a.subCategory || '').trim().localeCompare(
+            (b.subCategory || '').trim(),
             'es',
             { sensitivity: 'base' }
           );
           if (subComparison !== 0) return subComparison;
-          return (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' });
+          return (a.title || '').trim().localeCompare((b.title || '').trim(), 'es', { sensitivity: 'base' });
         }
 
         // Generic fallback by subCategory A-Z, then badge
@@ -493,63 +493,77 @@ export default function App() {
     return products.filter((p) => p.originalPrice && p.originalPrice > p.price).slice(0, 5);
   }, [products]);
 
+  // Quintuplicated list for seamless infinite loop on mobile touch scroll
+  const cyclicFlashProducts = useMemo(() => {
+    if (flashDealProducts.length <= 1) {
+      return flashDealProducts.map((p) => ({ ...p, _cyclicKey: p.id }));
+    }
+    const sets = [0, 1, 2, 3, 4];
+    return sets.flatMap((setNum) =>
+      flashDealProducts.map((p, idx) => ({
+        ...p,
+        _cyclicKey: `set${setNum}-${p.id}-${idx}`,
+      }))
+    );
+  }, [flashDealProducts]);
+
   // Cyclic horizontal carousel for Ofertas Flash
-  const [isFlashHovered, setIsFlashHovered] = useState(false);
   const [flashActiveIndex, setFlashActiveIndex] = useState(0);
 
   const handleScrollFlashLeft = () => {
     const container = flashScrollRef.current;
-    if (!container) return;
-    const itemWidth = (container.firstElementChild?.clientWidth || 210) + 16;
-    if (container.scrollLeft <= 25) {
-      container.scrollTo({ left: container.scrollWidth, behavior: 'smooth' });
-    } else {
-      container.scrollBy({ left: -itemWidth, behavior: 'smooth' });
-    }
+    if (!container || flashDealProducts.length === 0) return;
+    const singleSetWidth = container.scrollWidth / 5;
+    const itemWidth = singleSetWidth / flashDealProducts.length;
+    container.scrollBy({ left: -itemWidth, behavior: 'smooth' });
   };
 
   const handleScrollFlashRight = () => {
     const container = flashScrollRef.current;
-    if (!container) return;
-    const maxScroll = container.scrollWidth - container.clientWidth;
-    const itemWidth = (container.firstElementChild?.clientWidth || 210) + 16;
-    if (container.scrollLeft >= maxScroll - 25) {
-      container.scrollTo({ left: 0, behavior: 'smooth' });
-    } else {
-      container.scrollBy({ left: itemWidth, behavior: 'smooth' });
+    if (!container || flashDealProducts.length === 0) return;
+    const singleSetWidth = container.scrollWidth / 5;
+    const itemWidth = singleSetWidth / flashDealProducts.length;
+    container.scrollBy({ left: itemWidth, behavior: 'smooth' });
+  };
+
+  // Handle continuous loop wrap & active indicator updates on mobile touch scroll
+  const handleFlashScroll = () => {
+    const container = flashScrollRef.current;
+    if (!container || flashDealProducts.length <= 1) return;
+
+    const singleSetWidth = container.scrollWidth / 5;
+    if (singleSetWidth > 0) {
+      // Seamless wrap: when swiping past set 2 into set 3, reset back to set 2 invisibly
+      if (container.scrollLeft >= singleSetWidth * 3) {
+        container.scrollLeft -= singleSetWidth;
+      } else if (container.scrollLeft <= singleSetWidth * 1) {
+        container.scrollLeft += singleSetWidth;
+      }
+
+      const itemWidth = singleSetWidth / flashDealProducts.length;
+      if (itemWidth > 0) {
+        const offsetInSet = ((container.scrollLeft % singleSetWidth) + singleSetWidth) % singleSetWidth;
+        const currentIdx = Math.round(offsetInSet / itemWidth) % flashDealProducts.length;
+        setFlashActiveIndex(currentIdx);
+      }
     }
   };
 
-  // Auto-scroll loop for cyclical movement
+  // Initial scroll position in center set (Set 2) for endless scroll in both directions
   useEffect(() => {
-    if (flashDealProducts.length <= 1 || isFlashHovered) return;
-
-    const timer = setInterval(() => {
-      const container = flashScrollRef.current;
-      if (!container) return;
-
-      const maxScroll = container.scrollWidth - container.clientWidth;
-      if (maxScroll <= 0) return;
-
-      // When reaching or nearing the end, cycle smoothly back to start
-      if (container.scrollLeft >= maxScroll - 25) {
-        container.scrollTo({ left: 0, behavior: 'smooth' });
-      } else {
-        const itemWidth = (container.firstElementChild?.clientWidth || 210) + 16;
-        container.scrollBy({ left: itemWidth, behavior: 'smooth' });
-      }
-    }, 3200);
-
-    return () => clearInterval(timer);
-  }, [flashDealProducts.length, isFlashHovered]);
-
-  const handleFlashScroll = () => {
     const container = flashScrollRef.current;
-    if (!container) return;
-    const itemWidth = (container.firstElementChild?.clientWidth || 210) + 16;
-    const idx = Math.round(container.scrollLeft / itemWidth);
-    setFlashActiveIndex(Math.min(flashDealProducts.length - 1, Math.max(0, idx)));
-  };
+    if (!container || flashDealProducts.length <= 1) return;
+
+    const initTimer = setTimeout(() => {
+      if (!container) return;
+      const singleSetWidth = container.scrollWidth / 5;
+      if (singleSetWidth > 0) {
+        container.scrollLeft = singleSetWidth * 2;
+      }
+    }, 100);
+
+    return () => clearTimeout(initTimer);
+  }, [flashDealProducts]);
 
   // Bottom Navigation Handler
   const handleBottomTabChange = (tab: 'inicio' | 'buscar' | 'favoritos' | 'pedido') => {
@@ -710,24 +724,20 @@ export default function App() {
                 </div>
               </div>
 
-              {/* Flash Deals Horizontal Carousel (Cyclic / Auto-loop) */}
+              {/* Flash Deals Horizontal Carousel (Cyclic / Endless Loop) */}
               <div
                 ref={flashScrollRef}
-                onMouseEnter={() => setIsFlashHovered(true)}
-                onMouseLeave={() => setIsFlashHovered(false)}
-                onTouchStart={() => setIsFlashHovered(true)}
-                onTouchEnd={() => setIsFlashHovered(false)}
                 onScroll={handleFlashScroll}
-                className="flex overflow-x-auto gap-3 sm:gap-4 pb-3 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0"
+                className="flex overflow-x-auto gap-3 sm:gap-4 pb-3 pt-1 snap-x snap-mandatory no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0"
               >
-                {flashDealProducts.map((product, idx) => (
+                {cyclicFlashProducts.map((product, idx) => (
                   <div
-                    key={`flash-${product.id}`}
+                    key={product._cyclicKey}
                     className="w-[170px] sm:w-[210px] md:w-[230px] shrink-0 snap-start flex flex-col"
                   >
                     <ProductCard
                       product={product}
-                      index={idx}
+                      index={idx % flashDealProducts.length}
                       isFavorite={favorites.includes(product.id)}
                       onToggleFavorite={handleToggleFavorite}
                       onOpenDetail={setDetailProduct}
@@ -748,8 +758,9 @@ export default function App() {
                       onClick={() => {
                         const container = flashScrollRef.current;
                         if (!container) return;
-                        const itemWidth = (container.firstElementChild?.clientWidth || 210) + 16;
-                        container.scrollTo({ left: i * itemWidth, behavior: 'smooth' });
+                        const singleSetWidth = container.scrollWidth / 5;
+                        const itemWidth = singleSetWidth / flashDealProducts.length;
+                        container.scrollTo({ left: singleSetWidth * 2 + i * itemWidth, behavior: 'smooth' });
                       }}
                       className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
                         flashActiveIndex === i

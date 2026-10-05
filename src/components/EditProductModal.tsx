@@ -19,6 +19,7 @@ import {
   Layers,
   Loader2,
   ExternalLink,
+  Trash2,
 } from 'lucide-react';
 import { verifyAdminPassword } from '../utils/adminSecurity';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
@@ -36,6 +37,7 @@ interface EditProductModalProps {
   onSaveProduct: (updated: Product) => void;
   isAdminUnlocked: boolean;
   onUnlockAdmin?: () => void;
+  onDeleteProduct?: (productId: string) => void;
 }
 
 type ProductCategory = Product['mainCategory'];
@@ -73,11 +75,13 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   onSaveProduct,
   isAdminUnlocked,
   onUnlockAdmin,
+  onDeleteProduct,
 }) => {
   // Lock state if not unlocked
   const [pinInput, setPinInput] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [pinError, setPinError] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
 
   // Form states
   const [title, setTitle] = useState('');
@@ -865,15 +869,29 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
 
             </div>
 
-            {/* Modal Footer with Save Button */}
-            <div className="px-5 py-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between shrink-0">
-              <button
-                type="button"
-                onClick={onClose}
-                className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
-              >
-                Cancelar
-              </button>
+            {/* Modal Footer with Save and Delete Button */}
+            <div className="px-5 py-3.5 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 flex items-center justify-between gap-2 shrink-0">
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+
+                {onDeleteProduct && product && (
+                  <button
+                    type="button"
+                    onClick={() => setConfirmDelete(true)}
+                    className="px-3 py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:scale-[0.98] text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                    title="Eliminar este producto"
+                  >
+                    <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                    <span>Eliminar</span>
+                  </button>
+                )}
+              </div>
 
               <div className="flex items-center gap-3">
                 {savedToast && (
@@ -892,6 +910,50 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
               </div>
             </div>
           </form>
+        )}
+
+        {/* Delete Confirmation Modal from Edit Modal */}
+        {confirmDelete && product && (
+          <div className="fixed inset-0 z-70 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 max-w-sm w-full border border-slate-200 dark:border-slate-800 shadow-2xl text-center space-y-4 animate-in zoom-in-95">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  ¿Eliminar Producto?
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300 font-bold mt-1 line-clamp-2">
+                  «{product.title}»
+                </p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Esta acción eliminará el producto del catálogo permanentemente.
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setConfirmDelete(false)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setConfirmDelete(false);
+                    onDeleteProduct?.(product.id);
+                    onClose();
+                  }}
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Sí, Eliminar</span>
+                </button>
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

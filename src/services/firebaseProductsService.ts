@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   setDoc,
+  deleteDoc,
   getDocs,
   onSnapshot,
   writeBatch,
@@ -175,6 +176,21 @@ export async function saveProductToFirestore(product: Product): Promise<void> {
     await setDoc(docRef, cleanData, { merge: true });
   } catch (err) {
     console.warn('saveProductToFirestore error:', err);
+  }
+}
+
+/**
+ * Deletes a product from Firestore in real-time.
+ */
+export async function deleteProductFromFirestore(productId: string): Promise<boolean> {
+  try {
+    if (!db) return false;
+    const docRef = doc(db, PRODUCTS_COLLECTION, productId);
+    await deleteDoc(docRef);
+    return true;
+  } catch (err) {
+    console.warn('deleteProductFromFirestore error:', err);
+    return false;
   }
 }
 

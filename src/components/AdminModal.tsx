@@ -32,6 +32,7 @@ import {
   Download,
   Zap,
   Layers,
+  Trash2,
 } from 'lucide-react';
 import { CoralinkLogo } from './CoralinkLogo';
 import { EditProductModal } from './EditProductModal';
@@ -45,7 +46,7 @@ import {
   getRecoveryPhone,
   setRecoveryPhone,
 } from '../utils/adminSecurity';
-import { saveProductToFirestore } from '../services/firebaseProductsService';
+import { saveProductToFirestore, deleteProductFromFirestore } from '../services/firebaseProductsService';
 
 interface AdminModalProps {
   isOpen: boolean;
@@ -116,6 +117,21 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     );
     onSaveProducts(updated);
     setSelectedProductToEdit(null);
+  };
+
+  const [productToDelete, setProductToDelete] = useState<Product | null>(null);
+
+  const handleDeleteProduct = (productId: string) => {
+    const updated = localProducts.filter((p) => p.id !== productId);
+    setLocalProducts(updated);
+    deleteProductFromFirestore(productId).catch((err) =>
+      console.warn('Direct Firestore delete notice:', err)
+    );
+    onSaveProducts(updated);
+    setProductToDelete(null);
+    if (selectedProductToEdit?.id === productId) {
+      setSelectedProductToEdit(null);
+    }
   };
 
   // Password / Login Lock Screen State
@@ -1651,6 +1667,16 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             <Edit3 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
                             <span>Modificar</span>
                           </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setProductToDelete(product)}
+                            className="py-2 px-3 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 active:scale-[0.98] text-rose-600 dark:text-rose-400 border border-rose-500/30 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                            title="Eliminar este producto"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-600 dark:text-rose-400" />
+                            <span>Eliminar</span>
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -1661,12 +1687,53 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           </div>
         )}
 
+        {/* Delete Product Confirmation Modal */}
+        {productToDelete && (
+          <div className="fixed inset-0 z-60 bg-black/60 backdrop-blur-xs flex items-center justify-center p-4">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl p-5 sm:p-6 max-w-sm w-full border border-slate-200 dark:border-slate-800 shadow-2xl text-center space-y-4 animate-in zoom-in-95">
+              <div className="w-12 h-12 rounded-2xl bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center mx-auto">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div>
+                <h3 className="text-base font-black text-slate-900 dark:text-white">
+                  ¿Eliminar Producto?
+                </h3>
+                <p className="text-xs text-slate-600 dark:text-slate-300 font-bold mt-1 line-clamp-2">
+                  «{productToDelete.title}»
+                </p>
+                <p className="text-[11px] text-slate-400 mt-1">
+                  Esta acción eliminará el producto del catálogo y de la base de datos permanentemente.
+                </p>
+              </div>
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setProductToDelete(null)}
+                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 text-xs font-bold hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="button"
+                  onClick={() => handleDeleteProduct(productToDelete.id)}
+                  className="flex-1 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white text-xs font-bold transition-colors cursor-pointer shadow-md flex items-center justify-center gap-1.5"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                  <span>Sí, Eliminar</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Dedicated Product Edit Modal triggered from Admin Panel */}
         <EditProductModal
           isOpen={!!selectedProductToEdit}
           product={selectedProductToEdit}
           onClose={() => setSelectedProductToEdit(null)}
           onSaveProduct={handleSaveEditedProduct}
+          onDeleteProduct={handleDeleteProduct}
           isAdminUnlocked={true}
         />
       </div>
