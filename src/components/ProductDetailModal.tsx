@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Product } from '../types';
-import { X, Star, MessageCircle, ShoppingBag, Check, Sparkles, Shield, Truck, ThumbsUp, Send } from 'lucide-react';
+import { X, Star, MessageCircle, ShoppingBag, Check, Sparkles, Shield, Truck, ThumbsUp, Send, Clock, ShieldCheck } from 'lucide-react';
 import { StarRating } from './StarRating';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
 import { formatDirectImageUrl } from '../utils/imageUrlResolver';
@@ -275,12 +275,29 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 </div>
               </div>
 
-              {/* Total Row */}
-              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between">
-                <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Estimado ({quantity} {quantity === 1 ? 'unidad' : 'unidades'}):</span>
-                <span className="text-lg font-black text-[#FF6B35]">
-                  C$ {totalPrice.toLocaleString('es-NI')}
-                </span>
+              {/* Total & 50% Anticipo Row */}
+              <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 space-y-1">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs text-slate-500 dark:text-slate-400 font-medium">Total Estimado ({quantity} {quantity === 1 ? 'unidad' : 'unidades'}):</span>
+                  <span className="text-lg font-black text-[#FF6B35]">
+                    C$ {totalPrice.toLocaleString('es-NI')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs font-black text-amber-700 dark:text-amber-400">
+                  <span>Anticipo requerido (50%):</span>
+                  <span>C$ {(totalPrice * 0.5).toLocaleString('es-NI')}</span>
+                </div>
+              </div>
+
+              {/* Purchase Policy Notice */}
+              <div className="p-2.5 rounded-xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 text-xs">
+                <div className="flex items-center gap-1.5 font-bold text-amber-800 dark:text-amber-300 mb-0.5">
+                  <Clock className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>Política de Compra y Elaboración:</span>
+                </div>
+                <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-snug">
+                  Se requiere el <b>50% de anticipo</b> para iniciar la producción personalizada. Tiempo de entrega mínimo: <b>3 días hábiles</b>.
+                </p>
               </div>
 
               {/* Action Buttons */}

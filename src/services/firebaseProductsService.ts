@@ -56,6 +56,7 @@ export function subscribeToFirebaseProducts(
               description: data.description || '',
               inStock: data.inStock !== false,
               featured: Boolean(data.featured),
+              isFlashDeal: Boolean(data.isFlashDeal),
               badge: data.badge || undefined,
               rating: typeof data.rating === 'number' ? data.rating : 5.0,
               reviewsCount: typeof data.reviewsCount === 'number' ? data.reviewsCount : 24,
@@ -110,6 +111,7 @@ export async function fetchProductsFromFirestore(): Promise<Product[] | null> {
           description: data.description || '',
           inStock: data.inStock !== false,
           featured: Boolean(data.featured),
+          isFlashDeal: Boolean(data.isFlashDeal),
           badge: data.badge || undefined,
           rating: typeof data.rating === 'number' ? data.rating : 5.0,
           reviewsCount: typeof data.reviewsCount === 'number' ? data.reviewsCount : 24,
@@ -160,6 +162,9 @@ export async function saveProductToFirestore(product: Product): Promise<void> {
     if (product.featured !== undefined) {
       cleanData.featured = Boolean(product.featured);
     }
+    if (product.isFlashDeal !== undefined) {
+      cleanData.isFlashDeal = Boolean(product.isFlashDeal);
+    }
     if (product.badge !== undefined) {
       cleanData.badge = product.badge;
     }
@@ -205,6 +210,7 @@ export async function seedCatalogIfEmpty(): Promise<Product[] | null> {
       };
       if (product.originalPrice) cleanData.originalPrice = product.originalPrice;
       if (product.featured) cleanData.featured = product.featured;
+      if (product.isFlashDeal !== undefined) cleanData.isFlashDeal = product.isFlashDeal;
       if (product.badge) cleanData.badge = product.badge;
       if (product.availableOptions) cleanData.availableOptions = product.availableOptions;
 
@@ -249,6 +255,7 @@ export async function syncAllProductsToFirestore(products: Product[]): Promise<v
         };
         if (product.originalPrice) cleanData.originalPrice = product.originalPrice;
         if (product.featured) cleanData.featured = product.featured;
+        if (product.isFlashDeal !== undefined) cleanData.isFlashDeal = product.isFlashDeal;
         if (product.badge) cleanData.badge = product.badge;
         if (product.availableOptions) cleanData.availableOptions = product.availableOptions;
 

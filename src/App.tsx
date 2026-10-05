@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { Product, CartItem, MainCategory } from './types';
 import { INITIAL_PRODUCTS, CATALOG_VERSION } from './data/initialProducts';
 import { usePWAInstall } from './hooks/usePWAInstall';
@@ -19,7 +19,7 @@ import { PWAStatusModal } from './components/PWAStatusModal';
 import { BottomNavBar } from './components/BottomNavBar';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { Footer } from './components/Footer';
-import { Search, Zap, Sparkles, RefreshCw } from 'lucide-react';
+import { Search, Zap, Sparkles, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useThemeMode } from './hooks/useThemeMode';
 import { CORALINK_LOGO_URL, isReferenceLogo } from './utils/logoConstants';
 import { scanAndRecoverCustomProducts, mergePreservingCustomizations } from './utils/productMerger';
@@ -173,6 +173,38 @@ export default function App() {
 
   const handleLockAdmin = () => {
     setIsAdminUnlocked(false);
+  };
+
+  // Horizontal scroll ref for Ofertas Flash
+  const flashScrollRef = useRef<HTMLDivElement>(null);
+
+  // Enabled Categories State (Papelería Creativa & Resina locked by default for regular customers)
+  const [enabledCategories, setEnabledCategories] = useState<{
+    'Papelería creativa': boolean;
+    'Detalles en resina': boolean;
+  }>(() => {
+    if (typeof window !== 'undefined') {
+      try {
+        const cached = localStorage.getItem('coralink_enabled_categories');
+        if (cached) return JSON.parse(cached);
+      } catch {}
+    }
+    return { 'Papelería creativa': false, 'Detalles en resina': false };
+  });
+
+  const handleToggleCategory = (category: 'Papelería creativa' | 'Detalles en resina') => {
+    setEnabledCategories((prev) => {
+      const next = { ...prev, [category]: !prev[category] };
+      try {
+        localStorage.setItem('coralink_enabled_categories', JSON.stringify(next));
+      } catch {}
+      return next;
+    });
+  };
+
+  const handleLockedCategoryClick = (categoryName: string) => {
+    setSyncToastMsg(`✨ ¡Muy Pronto! La categoría «${categoryName}» estará disponible próximamente.`);
+    setTimeout(() => setSyncToastMsg(null), 3500);
   };
 
   const [syncToastMsg, setSyncToastMsg] = useState<string | null>(null);
@@ -352,11 +384,16 @@ export default function App() {
     selectedOptions: Record<string, string> = {},
     customNote = ''
   ) => {
+    const totalItemPrice = product.price * quantity;
+    const anticipo50 = totalItemPrice * 0.5;
+
     let msg = `🌊 *¡Hola Coralink! (Arte & Personalización Caribeña)*\n\n`;
-    msg += `Me interesa personalizar el siguiente producto de su catálogo:\n\n`;
+    msg += `Me interesa cotizar el siguiente producto de su catálogo:\n\n`;
     msg += `📌 *Producto:* ${product.title}\n`;
     msg += `📦 *Cantidad:* ${quantity}\n`;
-    msg += `💰 *Precio:* C$ ${(product.price * quantity).toLocaleString('es-NI')}\n`;
+    msg += `💰 *Precio Total:* C$ ${totalItemPrice.toLocaleString('es-NI')}\n`;
+    msg += `💵 *Anticipo requerido (50%):* C$ ${anticipo50.toLocaleString('es-NI')}\n`;
+    msg += `⏱️ *Tiempo de entrega:* Mínimo 3 días hábiles\n`;
 
     if (Object.keys(selectedOptions).length > 0) {
       const opts = Object.entries(selectedOptions)
@@ -369,28 +406,32 @@ export default function App() {
       msg += `📝 *Detalle personal:* "${customNote}"\n`;
     }
 
-    msg += `\n¿Tienen disponibilidad para envío en Nicaragua? ¡Muchas gracias!`;
+    msg += `\n📋 *Política de Compra:* Entiendo que se requiere dar el 50% de anticipo para iniciar la elaboración y que el tiempo de entrega es mínimo 3 días hábiles. ¿Tienen disponibilidad? ¡Muchas gracias!`;
 
     const encoded = encodeURIComponent(msg);
     window.open(`https://wa.me/50582045433?text=${encoded}`, '_blank');
   };
 
-  // Compute Subcategories dynamically ONLY for the currently selected category
+  // Compute Subcategories dynamically ONLY for the currently selected category, sorted A-Z
   const availableSubCategories = useMemo(() => {
     if (selectedCategory === 'Todo') return [];
     const set = new Set<string>();
     products
       .filter((p) => p.mainCategory === selectedCategory)
       .forEach((p) => set.add(p.subCategory));
-    return Array.from(set);
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
   }, [products, selectedCategory]);
 
-  // Filtered & Sorted Products
+  // Filtered & Sorted Products: In 'Todo', show exclusively 'Personalizados' sorted A-Z by subCategory
   const filteredProducts = useMemo(() => {
     return products
       .filter((p) => {
-        // Main Category filter
-        if (selectedCategory !== 'Todo' && p.mainCategory !== selectedCategory) {
+        // Main Category filter: When 'Todo' is active, show only 'Personalizados' products
+        if (selectedCategory === 'Todo') {
+          if (p.mainCategory !== 'Personalizados') {
+            return false;
+          }
+        } else if (p.mainCategory !== selectedCategory) {
           return false;
         }
         // SubCategory filter
@@ -409,17 +450,47 @@ export default function App() {
         return true;
       })
       .sort((a, b) => {
-        if (sortBy === 'price-asc') return a.price - b.price;
-        if (sortBy === 'price-desc') return b.price - a.price;
-        if (sortBy === 'sales') return b.salesCount - a.salesCount;
-        if (sortBy === 'rating') return b.rating - a.rating;
+        if (sortBy === 'price-asc') {
+          if (a.price !== b.price) return a.price - b.price;
+        } else if (sortBy === 'price-desc') {
+          if (a.price !== b.price) return b.price - a.price;
+        } else if (sortBy === 'sales') {
+          if (a.salesCount !== b.salesCount) return b.salesCount - a.salesCount;
+        } else if (sortBy === 'rating') {
+          if (a.rating !== b.rating) return b.rating - a.rating;
+        }
+
+        // Default or featured: For 'Personalizados', order A-Z by subCategory, then title A-Z
+        if (a.mainCategory === 'Personalizados' && b.mainCategory === 'Personalizados') {
+          const subComparison = (a.subCategory || '').localeCompare(
+            b.subCategory || '',
+            'es',
+            { sensitivity: 'base' }
+          );
+          if (subComparison !== 0) return subComparison;
+          return (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' });
+        }
+
+        // Generic fallback by subCategory A-Z, then badge
+        const catComparison = (a.subCategory || '').localeCompare(
+          b.subCategory || '',
+          'es',
+          { sensitivity: 'base' }
+        );
+        if (catComparison !== 0) return catComparison;
+
         return (b.badge ? 1 : 0) - (a.badge ? 1 : 0);
       });
   }, [products, selectedCategory, selectedSubCategory, searchQuery, sortBy]);
 
-  // Flash Deals special selection (items with discount badges or popular items)
+  // Flash Deals special selection (shows exactly 5 products, prioritizing admin-enabled flash deals)
   const flashDealProducts = useMemo(() => {
-    return products.filter((p) => p.originalPrice && p.originalPrice > p.price).slice(0, 8);
+    const explicit = products.filter((p) => p.isFlashDeal === true);
+    if (explicit.length > 0) {
+      return explicit.slice(0, 5);
+    }
+    // Fallback if none marked yet: items with discount
+    return products.filter((p) => p.originalPrice && p.originalPrice > p.price).slice(0, 5);
   }, [products]);
 
   // Bottom Navigation Handler
@@ -534,6 +605,9 @@ export default function App() {
           subCategories={availableSubCategories}
           sortBy={sortBy}
           onSortChange={setSortBy}
+          isAdmin={isAdminUnlocked}
+          enabledCategories={enabledCategories}
+          onLockedCategoryClick={handleLockedCategoryClick}
         />
       </div>
 
@@ -545,27 +619,63 @@ export default function App() {
 
         {/* Catalog Section */}
         <div className="max-w-7xl mx-auto px-3 sm:px-6 py-4">
-          {/* Section: Ofertas Flash Grid (When on Todo / Home view without active text search) */}
-          {!searchQuery && selectedCategory === 'Todo' && selectedSubCategory === 'Todas' && (
+          {/* Section: Ofertas Flash Horizontal Carousel (When on Todo / Home view without active text search) */}
+          {!searchQuery && selectedCategory === 'Todo' && selectedSubCategory === 'Todas' && flashDealProducts.length > 0 && (
             <div className="mb-8">
-              <div className="flex items-center gap-1.5 text-base sm:text-lg font-black text-[#0B2545] dark:text-white mb-3">
-                <Zap className="w-5 h-5 text-[#FF6B35] fill-[#FF6B35]" />
-                <span>Ofertas Flash</span>
+              <div className="flex items-center justify-between gap-2 mb-3">
+                <div className="flex items-center gap-1.5 text-base sm:text-lg font-black text-[#0B2545] dark:text-white">
+                  <Zap className="w-5 h-5 text-[#FF6B35] fill-[#FF6B35]" />
+                  <span>Ofertas Flash</span>
+                  <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/60 text-[#FF6B35] ml-1">
+                    {flashDealProducts.length} productos
+                  </span>
+                </div>
+
+                {/* Horizontal scroll controls */}
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      flashScrollRef.current?.scrollBy({ left: -260, behavior: 'smooth' });
+                    }}
+                    className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+                    title="Desplazar a la izquierda"
+                  >
+                    <ChevronLeft className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      flashScrollRef.current?.scrollBy({ left: 260, behavior: 'smooth' });
+                    }}
+                    className="w-8 h-8 rounded-full border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-700 flex items-center justify-center transition-colors cursor-pointer shadow-2xs"
+                    title="Desplazar a la derecha"
+                  >
+                    <ChevronRight className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
-              {/* Flash Deals Horizontal Carousel / Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3 sm:gap-4">
+              {/* Flash Deals Horizontal Carousel (Exactly up to 5 products) */}
+              <div
+                ref={flashScrollRef}
+                className="flex overflow-x-auto gap-3 sm:gap-4 pb-3 pt-1 scroll-smooth snap-x snap-mandatory no-scrollbar -mx-3 px-3 sm:mx-0 sm:px-0"
+              >
                 {flashDealProducts.map((product, idx) => (
-                  <ProductCard
+                  <div
                     key={`flash-${product.id}`}
-                    product={product}
-                    index={idx}
-                    isFavorite={favorites.includes(product.id)}
-                    onToggleFavorite={handleToggleFavorite}
-                    onOpenDetail={setDetailProduct}
-                    onAddToCart={(p) => handleAddToCart(p, 1)}
-                    onDirectWhatsApp={(p) => handleDirectWhatsApp(p, 1)}
-                  />
+                    className="w-[170px] sm:w-[210px] md:w-[230px] shrink-0 snap-start flex flex-col"
+                  >
+                    <ProductCard
+                      product={product}
+                      index={idx}
+                      isFavorite={favorites.includes(product.id)}
+                      onToggleFavorite={handleToggleFavorite}
+                      onOpenDetail={setDetailProduct}
+                      onAddToCart={(p) => handleAddToCart(p, 1)}
+                      onDirectWhatsApp={(p) => handleDirectWhatsApp(p, 1)}
+                    />
+                  </div>
                 ))}
               </div>
             </div>
@@ -577,7 +687,7 @@ export default function App() {
               <div className="flex items-center gap-2 text-xs sm:text-sm text-slate-700 dark:text-slate-200 font-bold">
                 <span>
                   {selectedCategory === 'Todo'
-                    ? 'Todos los Productos'
+                    ? 'Todos los Productos (Personalizados)'
                     : selectedCategory}
                   <span className="text-slate-400 font-normal ml-1.5">
                     ({filteredProducts.length} disponibles)
@@ -643,7 +753,7 @@ export default function App() {
       </main>
 
       {/* Brand Logo, Title, Slogan and Description at the End of Page */}
-      <Footer onOpenAdmin={handleOpenAdmin} logoUrl={storeLogo} onForceSync={updateApp} />
+      <Footer onOpenAdmin={handleOpenAdmin} logoUrl={storeLogo} onForceSync={handleManualSyncCatalog} />
 
       {/* FIXED BOTTOM NAVIGATION BAR: Inicio, Buscar, Favoritos, Pedido */}
       <BottomNavBar
@@ -701,9 +811,11 @@ export default function App() {
         logoUrl={storeLogo}
         onUpdateLogo={handleUpdateLogo}
         onResetLogo={handleResetLogo}
-        onForceSync={updateApp}
+        onForceSync={handleManualSyncCatalog}
         isUpdating={isUpdating}
         onRecoverCustomProducts={handleRecoverCustomProducts}
+        enabledCategories={enabledCategories}
+        onToggleCategory={handleToggleCategory}
       />
 
       <PWAStatusModal

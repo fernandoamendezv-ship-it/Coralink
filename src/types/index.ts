@@ -23,6 +23,7 @@ export interface Product {
   badge?: string;
   inStock: boolean;
   featured?: boolean;
+  isFlashDeal?: boolean;
   availableOptions?: {
     label: string;
     choices: string[];

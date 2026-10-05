@@ -30,6 +30,8 @@ import {
   HelpCircle,
   RefreshCw,
   Download,
+  Zap,
+  Layers,
 } from 'lucide-react';
 import { CoralinkLogo } from './CoralinkLogo';
 import { EditProductModal } from './EditProductModal';
@@ -60,6 +62,8 @@ interface AdminModalProps {
   onForceSync?: () => void;
   isUpdating?: boolean;
   onRecoverCustomProducts?: () => number;
+  enabledCategories?: { 'Papelería creativa': boolean; 'Detalles en resina': boolean };
+  onToggleCategory?: (category: 'Papelería creativa' | 'Detalles en resina') => void;
 }
 
 export const AdminModal: React.FC<AdminModalProps> = ({
@@ -77,6 +81,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   onForceSync,
   isUpdating = false,
   onRecoverCustomProducts,
+  enabledCategories,
+  onToggleCategory,
 }) => {
   const [activeTab, setActiveTab] = useState<'products' | 'logo' | 'security'>('products');
   const [localProducts, setLocalProducts] = useState<Product[]>(products);
@@ -421,12 +427,28 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setTimeout(() => setSaveToast(false), 2000);
   };
 
-  const filteredProducts = localProducts.filter((p) => {
-    const matchesQuery = p.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
-      p.subCategory.toLowerCase().includes(filterQuery.toLowerCase());
-    const matchesCat = selectedMainCat === 'Todas' || p.mainCategory === selectedMainCat;
-    return matchesQuery && matchesCat;
-  });
+  const filteredProducts = localProducts
+    .filter((p) => {
+      const matchesQuery =
+        p.title.toLowerCase().includes(filterQuery.toLowerCase()) ||
+        p.subCategory.toLowerCase().includes(filterQuery.toLowerCase());
+      const matchesCat =
+        selectedMainCat === 'Todas'
+          ? true
+          : selectedMainCat === 'Ofertas Flash'
+          ? Boolean(p.isFlashDeal)
+          : p.mainCategory === selectedMainCat;
+      return matchesQuery && matchesCat;
+    })
+    .sort((a, b) => {
+      // Order 'Personalizados' A-Z by subcategory, then by title
+      if (a.mainCategory === 'Personalizados' && b.mainCategory === 'Personalizados') {
+        const subComp = (a.subCategory || '').localeCompare(b.subCategory || '', 'es', { sensitivity: 'base' });
+        if (subComp !== 0) return subComp;
+        return (a.title || '').localeCompare(b.title || '', 'es', { sensitivity: 'base' });
+      }
+      return (a.subCategory || '').localeCompare(b.subCategory || '', 'es', { sensitivity: 'base' });
+    });
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-xs">
@@ -1283,34 +1305,68 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   </div>
                 )}
 
-                {/* Search & Filter Bar */}
-                <div className="p-3 sm:p-4 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0">
-                  <div className="flex items-center gap-2 flex-1 min-w-[240px]">
-                    <div className="relative flex-1">
+                {/* Search & Filter Bar with Minimized Category Toggles */}
+                <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+                  <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
+                    <div className="relative flex-1 min-w-[160px]">
                       <input
                         type="text"
                         value={filterQuery}
                         onChange={(e) => setFilterQuery(e.target.value)}
                         placeholder="Buscar producto para editar..."
-                        className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] focus:outline-none"
+                        className="w-full pl-8 pr-3 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] focus:outline-none"
                       />
-                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+                      <Search className="w-3.5 h-3.5 text-slate-400 absolute left-2.5 top-2" />
                     </div>
 
                     <select
                       value={selectedMainCat}
                       onChange={(e) => setSelectedMainCat(e.target.value)}
-                      className="px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:border-[#1BA7D9] focus:outline-none"
+                      className="px-2 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 focus:border-[#1BA7D9] focus:outline-none"
                     >
                       <option value="Todas">Todas las Categorías</option>
+                      <option value="Ofertas Flash">⚡ Ofertas Flash ({localProducts.filter((p) => p.isFlashDeal).length})</option>
                       <option value="Personalizados">Personalizados</option>
                       <option value="Papelería creativa">Papelería creativa</option>
                       <option value="Detalles en resina">Detalles en resina</option>
                     </select>
+
+                    {/* Minimized Category Toggles */}
+                    {onToggleCategory && enabledCategories && (
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => onToggleCategory('Papelería creativa')}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                            enabledCategories['Papelería creativa']
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-slate-400'
+                          }`}
+                          title={enabledCategories['Papelería creativa'] ? 'Papelería Creativa: Activa (Clic para poner Muy Pronto)' : 'Papelería Creativa: Bloqueada (Clic para Activar)'}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${enabledCategories['Papelería creativa'] ? 'bg-white' : 'bg-amber-500'}`} />
+                          <span>Papelería: {enabledCategories['Papelería creativa'] ? 'Activa' : 'Pronto'}</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => onToggleCategory('Detalles en resina')}
+                          className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all cursor-pointer flex items-center gap-1 ${
+                            enabledCategories['Detalles en resina']
+                              ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
+                              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-slate-400'
+                          }`}
+                          title={enabledCategories['Detalles en resina'] ? 'Resina: Activa (Clic para poner Muy Pronto)' : 'Resina: Bloqueada (Clic para Activar)'}
+                        >
+                          <span className={`w-1.5 h-1.5 rounded-full ${enabledCategories['Detalles en resina'] ? 'bg-white' : 'bg-amber-500'}`} />
+                          <span>Resina: {enabledCategories['Detalles en resina'] ? 'Activa' : 'Pronto'}</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
 
                   <span className="text-xs text-slate-500 dark:text-slate-400">
-                    Mostrando <b>{filteredProducts.length}</b> de <b>{localProducts.length}</b> productos
+                    <b>{filteredProducts.length}</b>/{localProducts.length} productos
                   </span>
                 </div>
 
@@ -1564,16 +1620,38 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           </div>
                         </div>
 
-                        {/* Modificar Button in Admin Panel */}
-                        <button
-                          type="button"
-                          onClick={() => setSelectedProductToEdit(product)}
-                          className="w-full py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 active:scale-[0.98] text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
-                          title="Modificar descripción, cargar imagen, cambiar precio y categoría"
-                        >
-                          <Edit3 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
-                          <span>Modificar Producto</span>
-                        </button>
+                        {/* Action Buttons in Admin Panel */}
+                        <div className="flex items-center gap-2 pt-1">
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedProduct = {
+                                ...product,
+                                isFlashDeal: !product.isFlashDeal,
+                              };
+                              handleSaveEditedProduct(updatedProduct);
+                            }}
+                            className={`px-2.5 py-2 rounded-xl text-[11px] font-bold flex items-center justify-center gap-1 transition-all cursor-pointer ${
+                              product.isFlashDeal
+                                ? 'bg-[#FF6B35] text-white shadow-xs hover:bg-[#e05624]'
+                                : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-orange-50 dark:hover:bg-orange-950/30 hover:text-[#FF6B35]'
+                            }`}
+                            title={product.isFlashDeal ? 'Habilitado en Ofertas Flash (clic para quitar)' : 'Habilitar en Ofertas Flash'}
+                          >
+                            <Zap className={`w-3.5 h-3.5 ${product.isFlashDeal ? 'fill-current' : ''}`} />
+                            <span className="hidden sm:inline">{product.isFlashDeal ? 'En Oferta' : '+ Oferta'}</span>
+                          </button>
+
+                          <button
+                            type="button"
+                            onClick={() => setSelectedProductToEdit(product)}
+                            className="flex-1 py-2 px-3 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 active:scale-[0.98] text-amber-700 dark:text-amber-300 border border-amber-500/30 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-2xs"
+                            title="Modificar descripción, cargar imagen, cambiar precio y categoría"
+                          >
+                            <Edit3 className="w-3.5 h-3.5 text-amber-600 dark:text-amber-400" />
+                            <span>Modificar</span>
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>

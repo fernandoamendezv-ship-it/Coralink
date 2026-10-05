@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { CartItem } from '../types';
-import { X, Trash2, MessageCircle, MapPin, User, ShoppingBag } from 'lucide-react';
+import { X, Trash2, MessageCircle, MapPin, User, ShoppingBag, Clock, ShieldCheck } from 'lucide-react';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
 import { formatDirectImageUrl } from '../utils/imageUrlResolver';
 
@@ -54,7 +54,10 @@ export const QuoteDrawer: React.FC<QuoteDrawerProps> = ({
       message += `\n`;
     });
 
-    message += `💰 *TOTAL ESTIMADO: C$ ${totalAmount.toLocaleString('es-NI')}*\n\n`;
+    const anticipo50 = totalAmount * 0.5;
+    message += `💰 *TOTAL ESTIMADO: C$ ${totalAmount.toLocaleString('es-NI')}*\n`;
+    message += `💵 *Anticipo requerido (50%): C$ ${anticipo50.toLocaleString('es-NI')}*\n`;
+    message += `⏱️ *Tiempo de entrega:* Mínimo 3 días hábiles\n\n`;
 
     if (customerName) {
       message += `👤 *Cliente:* ${customerName}\n`;
@@ -66,7 +69,7 @@ export const QuoteDrawer: React.FC<QuoteDrawerProps> = ({
       message += `📝 *Comentarios adicionales:* ${notes}\n`;
     }
 
-    message += `\n¿Me confirman disponibilidad y tiempo de entrega? ¡Gracias!`;
+    message += `\n📋 *Política de Compra:* Entiendo que se requiere dar el 50% de anticipo del total cotizado para iniciar la elaboración y que el tiempo de entrega es mínimo 3 días hábiles.\n\n¿Me confirman disponibilidad para proceder? ¡Gracias!`;
 
     const encoded = encodeURIComponent(message);
     // WhatsApp direct link to Coralink official number +505 8204 5433
@@ -256,14 +259,41 @@ export const QuoteDrawer: React.FC<QuoteDrawerProps> = ({
             </div>
           )}
 
-          {/* Drawer Footer with Total & WhatsApp Button */}
+          {/* Drawer Footer with Total, Purchase Policy & WhatsApp Button */}
           {items.length > 0 && (
-            <div className="p-4 bg-white border-t border-slate-200 space-y-3">
-              <div className="flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-600">Total a Cotizar:</span>
-                <span className="text-xl font-black text-[#FF6B35]">
-                  C$ {totalAmount.toLocaleString('es-NI')}
-                </span>
+            <div className="p-4 bg-white dark:bg-slate-900 border-t border-slate-200 dark:border-slate-800 space-y-3">
+              {/* Purchase Policy Banner */}
+              <div className="p-3 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/80 dark:border-amber-800/60 text-xs space-y-1.5">
+                <div className="flex items-center gap-1.5 font-black text-amber-800 dark:text-amber-300">
+                  <ShieldCheck className="w-4 h-4 text-amber-600 dark:text-amber-400 shrink-0" />
+                  <span>Política de Compra y Elaboración:</span>
+                </div>
+                <div className="text-[11px] text-slate-600 dark:text-slate-300 space-y-1 pl-1">
+                  <p className="flex items-start gap-1">
+                    <span className="text-amber-600 font-bold">•</span>
+                    <span><b>Anticipo del 50%:</b> Se requiere dar el 50% del total para iniciar la personalización de tu pedido.</span>
+                  </p>
+                  <p className="flex items-start gap-1">
+                    <span className="text-amber-600 font-bold">•</span>
+                    <span><b>Tiempo de Entrega:</b> Mínimo <b>3 días hábiles</b> a partir de la confirmación del anticipo.</span>
+                  </p>
+                </div>
+              </div>
+
+              {/* Total & 50% Anticipo Breakdown */}
+              <div className="p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200/70 dark:border-slate-700/60 space-y-1">
+                <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
+                  <span>Total de Productos:</span>
+                  <span className="font-bold text-slate-700 dark:text-slate-200">
+                    C$ {totalAmount.toLocaleString('es-NI')}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between text-xs font-black text-[#FF6B35]">
+                  <span>Anticipo a pagar (50%):</span>
+                  <span className="text-base">
+                    C$ {(totalAmount * 0.5).toLocaleString('es-NI')}
+                  </span>
+                </div>
               </div>
 
               <button

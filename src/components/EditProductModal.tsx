@@ -15,6 +15,7 @@ import {
   EyeOff,
   AlertCircle,
   Sparkles,
+  Zap,
   Layers,
   Loader2,
   ExternalLink,
@@ -88,6 +89,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   const [description, setDescription] = useState('');
   const [inStock, setInStock] = useState(true);
   const [featured, setFeatured] = useState(false);
+  const [isFlashDeal, setIsFlashDeal] = useState(false);
   const [badge, setBadge] = useState('');
 
   // UI state
@@ -214,6 +216,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       setDescription(product.description || '');
       setInStock(product.inStock !== false);
       setFeatured(!!product.featured);
+      setIsFlashDeal(!!product.isFlashDeal);
       setBadge(product.badge || '');
       setPinInput('');
       setPinError(false);
@@ -329,6 +332,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       description: description.trim(),
       inStock,
       featured,
+      isFlashDeal,
       badge: badge.trim() || undefined,
     };
 
@@ -787,43 +791,75 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                 />
               </div>
 
-              {/* Field 6: Stock & Badge */}
-              <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="edit-instock"
-                    checked={inStock}
-                    onChange={(e) => setInStock(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#1BA7D9] focus:ring-[#1BA7D9] cursor-pointer"
-                  />
-                  <label htmlFor="edit-instock" className="text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
-                    En Stock (Disponible)
-                  </label>
+              {/* Field 6: Stock, Oferta Flash & Badge */}
+              <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="edit-instock"
+                      checked={inStock}
+                      onChange={(e) => setInStock(e.target.checked)}
+                      className="w-4 h-4 rounded text-[#1BA7D9] focus:ring-[#1BA7D9] cursor-pointer"
+                    />
+                    <label htmlFor="edit-instock" className="text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
+                      En Stock (Disponible)
+                    </label>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="checkbox"
+                      id="edit-featured"
+                      checked={featured}
+                      onChange={(e) => setFeatured(e.target.checked)}
+                      className="w-4 h-4 rounded text-[#FF6B35] focus:ring-[#FF6B35] cursor-pointer"
+                    />
+                    <label htmlFor="edit-featured" className="text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-1">
+                      <Sparkles className="w-3.5 h-3.5 text-amber-500" />
+                      <span>Destacado</span>
+                    </label>
+                  </div>
+
+                  <div>
+                    <input
+                      type="text"
+                      value={badge}
+                      onChange={(e) => setBadge(e.target.value)}
+                      placeholder="Etiqueta: ej. NUEVO, 50% OFF"
+                      className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] outline-none"
+                    />
+                  </div>
                 </div>
 
-                <div className="flex items-center gap-2">
-                  <input
-                    type="checkbox"
-                    id="edit-featured"
-                    checked={featured}
-                    onChange={(e) => setFeatured(e.target.checked)}
-                    className="w-4 h-4 rounded text-[#FF6B35] focus:ring-[#FF6B35] cursor-pointer"
-                  />
-                  <label htmlFor="edit-featured" className="text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-1">
-                    <Sparkles className="w-3.5 h-3.5 text-amber-500" />
-                    <span>Destacado</span>
-                  </label>
-                </div>
+                {/* Oferta Flash Toggle Button */}
+                <div className="pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between p-2.5 rounded-xl bg-gradient-to-r from-orange-50 to-amber-50 dark:from-orange-950/20 dark:to-amber-950/20 border border-orange-200/80 dark:border-orange-800/60">
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-lg bg-[#FF6B35]/20 flex items-center justify-center text-[#FF6B35]">
+                      <Zap className="w-4 h-4 fill-[#FF6B35]" />
+                    </div>
+                    <div>
+                      <span className="text-xs font-black text-[#0B2545] dark:text-white block">
+                        Sección de Ofertas Flash
+                      </span>
+                      <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                        Mostrar en el carrusel horizontal de 5 ofertas principales
+                      </span>
+                    </div>
+                  </div>
 
-                <div>
-                  <input
-                    type="text"
-                    value={badge}
-                    onChange={(e) => setBadge(e.target.value)}
-                    placeholder="Etiqueta: ej. NUEVO, 50% OFF"
-                    className="w-full px-2.5 py-1.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] outline-none"
-                  />
+                  <button
+                    type="button"
+                    onClick={() => setIsFlashDeal(!isFlashDeal)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shadow-xs ${
+                      isFlashDeal
+                        ? 'bg-[#FF6B35] text-white shadow-md shadow-[#FF6B35]/30'
+                        : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-750'
+                    }`}
+                  >
+                    <Zap className={`w-3.5 h-3.5 ${isFlashDeal ? 'fill-white text-white' : 'text-slate-400'}`} />
+                    <span>{isFlashDeal ? 'Habilitada en Ofertas' : 'No Habilitada'}</span>
+                  </button>
                 </div>
               </div>
 

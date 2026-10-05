@@ -31,9 +31,10 @@ export function isProductCustomized(product: Product, defaultProduct?: Product):
     return true;
   }
 
-  // Check if badge or inStock was altered
+  // Check if badge or inStock or isFlashDeal was altered
   if (product.badge !== defaultProduct.badge) return true;
   if (product.inStock !== defaultProduct.inStock) return true;
+  if (Boolean(product.isFlashDeal) !== Boolean(defaultProduct.isFlashDeal)) return true;
 
   return false;
 }
