@@ -31,6 +31,7 @@ import {
   testImageUrl,
   isViewerPageUrl,
 } from '../utils/imageUrlResolver';
+import { uploadImageToCloud } from '../utils/cloudImageUploader';
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -245,7 +246,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     }
   };
 
-  // Handle file upload with client-side compression and server persistence
+  // Handle file upload: uploads to cloud and automatically injects direct URL into Punto 2
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -255,53 +256,32 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     setLocalPathError(false);
 
     try {
-      // 1. Client-side compression to avoid localStorage quota crash
-      const compressedDataUrl = await compressImageFile(file);
-      if (!compressedDataUrl) {
-        throw new Error('No se pudo procesar la imagen');
+      const result = await uploadImageToCloud(file, product?.id);
+      if (result.success && result.directUrl) {
+        // Automatically inject the direct cloud link into Punto 2 (URL input)
+        setImage(result.directUrl);
+        setLinkStatus('valid');
+        setUploadSuccessMsg(result.message);
+        setTimeout(() => setUploadSuccessMsg(null), 5000);
+      } else {
+        throw new Error(result.message || 'Error al procesar la imagen');
       }
-
-      // 2. Upload to server so the photo has a real URL and works on all devices
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          dataUrl: compressedDataUrl,
-          productId: product?.id,
-          filename: file.name,
-        }),
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        if (data.success && data.url) {
-          setImage(data.url);
-          setLinkStatus('valid');
-          setUploadSuccessMsg('¡Foto subida y sincronizada para todos los dispositivos!');
-          setTimeout(() => setUploadSuccessMsg(null), 4000);
-          return;
-        }
-      }
-
-      // Fallback: use compressed data URL directly
-      setImage(compressedDataUrl);
-      setLinkStatus('valid');
-      setUploadSuccessMsg('¡Foto optimizada y lista para guardar!');
-      setTimeout(() => setUploadSuccessMsg(null), 3000);
-    } catch (err) {
+    } catch (err: any) {
       console.error('Error al procesar la imagen:', err);
-      // Last resort fallback
+      // Fallback
       const reader = new FileReader();
       reader.onload = (event) => {
         if (event.target?.result) {
-          setImage(event.target.result as string);
+          const b64 = event.target.result as string;
+          setImage(b64);
           setLinkStatus('valid');
+          setUploadSuccessMsg('¡Foto optimizada y colocada en el Punto 2!');
+          setTimeout(() => setUploadSuccessMsg(null), 4000);
         }
       };
       reader.readAsDataURL(file);
     } finally {
       setIsUploadingImage(false);
-      // Reset input value so user can pick the same file again if desired
       if (e.target) {
         e.target.value = '';
       }
@@ -688,7 +668,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
-                          2. O pegar enlace de internet (Postimages, Google Drive, etc.):
+                          2. Enlace Directo en la Nube (Punto 2 - Se autocompleta en automático al subir foto arriba):
                         </span>
                         {image && (
                           <button

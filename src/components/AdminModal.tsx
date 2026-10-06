@@ -38,6 +38,7 @@ import { CoralinkLogo } from './CoralinkLogo';
 import { EditProductModal } from './EditProductModal';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
 import { formatDirectImageUrl } from '../utils/imageUrlResolver';
+import { uploadImageToCloud } from '../utils/cloudImageUploader';
 import {
   verifyAdminPassword,
   setAdminPassword,
@@ -242,6 +243,46 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     inStock: true,
   });
 
+  const [isUploadingNewImage, setIsUploadingNewImage] = useState(false);
+  const [newImageUploadMsg, setNewImageUploadMsg] = useState<string | null>(null);
+  const newProductFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  const handleNewProductFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    setIsUploadingNewImage(true);
+    setNewImageUploadMsg(null);
+
+    try {
+      const result = await uploadImageToCloud(file, 'new-product');
+      if (result.success && result.directUrl) {
+        setNewProduct((prev) => ({ ...prev, image: result.directUrl }));
+        setNewImageUploadMsg(result.message);
+        setTimeout(() => setNewImageUploadMsg(null), 5000);
+      } else {
+        throw new Error(result.message || 'Error al procesar la imagen');
+      }
+    } catch (err: any) {
+      console.error('Error al subir imagen de nuevo producto:', err);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const resStr = event.target ? (event.target.result as string) : '';
+        if (resStr) {
+          setNewProduct((prev) => ({ ...prev, image: resStr }));
+          setNewImageUploadMsg('¡Foto colocada en el Punto 2!');
+          setTimeout(() => setNewImageUploadMsg(null), 4000);
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setIsUploadingNewImage(false);
+      if (e.target) {
+        e.target.value = '';
+      }
+    }
+  };
+
   // Sync state
   useEffect(() => {
     setLocalProducts(products);
@@ -438,7 +479,23 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     const updated = [created, ...localProducts];
     setLocalProducts(updated);
     onSaveProducts(updated);
+    saveProductToFirestore(created).catch((err) =>
+      console.warn('Sync new product to firestore notice:', err)
+    );
     setShowAddForm(false);
+    setNewProduct({
+      title: '',
+      mainCategory: 'Personalizados',
+      subCategory: 'Fotoregalos',
+      price: 200,
+      originalPrice: 250,
+      image: '',
+      description: 'Producto artesanal caribeño de alta calidad personalizado en Nicaragua.',
+      rating: 5.0,
+      reviewsCount: 12,
+      salesCount: 30,
+      inStock: true,
+    });
     setSaveToast(true);
     setTimeout(() => setSaveToast(false), 2000);
   };
@@ -1459,17 +1516,87 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       />
                     </div>
 
-                    <div className="sm:col-span-2">
-                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                        URL de la Imagen
-                      </label>
-                      <input
-                        type="text"
-                        value={newProduct.image}
-                        onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })}
-                        placeholder="https://..."
-                        className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
-                      />
+                    {/* Image Upload & Direct Link Section for New Product */}
+                    <div className="sm:col-span-4 bg-slate-50 dark:bg-slate-800/60 p-3.5 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-black text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                          <ImageIcon className="w-3.5 h-3.5 text-[#1BA7D9]" />
+                          <span>Imagen del Producto</span>
+                        </label>
+                        <span className="text-[10px] text-slate-500 dark:text-slate-400">
+                          Nube: postimg.cc/gallery/zJjp92t
+                        </span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
+                        {/* Live Preview Thumbnail */}
+                        <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 aspect-square max-w-[100px] mx-auto w-full overflow-hidden">
+                          {newProduct.image ? (
+                            <img
+                              src={newProduct.image}
+                              alt="Vista previa"
+                              className="w-full h-full object-cover rounded-lg"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
+                              }}
+                            />
+                          ) : (
+                            <div className="text-center p-1">
+                              <ImageIcon className="w-6 h-6 text-slate-400 mx-auto mb-1" />
+                              <span className="text-[9px] text-slate-400">Sin foto</span>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Upload Controls (Punto 1 y Punto 2) */}
+                        <div className="sm:col-span-3 space-y-2">
+                          <div>
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                              1. Cargar foto desde tu celular o computadora:
+                            </span>
+                            <input
+                              type="file"
+                              ref={newProductFileInputRef}
+                              accept="image/*"
+                              onChange={handleNewProductFileUpload}
+                              className="hidden"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => newProductFileInputRef.current?.click()}
+                              disabled={isUploadingNewImage}
+                              className="w-full py-2 px-3 rounded-xl border border-dashed border-[#1BA7D9] bg-sky-50 dark:bg-sky-950/30 hover:bg-sky-100/60 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-50"
+                            >
+                              <Upload className="w-3.5 h-3.5 text-[#1BA7D9]" />
+                              <span>
+                                {isUploadingNewImage
+                                  ? 'Alojando y sincronizando foto en la nube...'
+                                  : 'Subir Foto desde tu Móvil o Computadora'}
+                              </span>
+                            </button>
+
+                            {newImageUploadMsg && (
+                              <div className="mt-1 p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 animate-in fade-in">
+                                <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+                                <span>{newImageUploadMsg}</span>
+                              </div>
+                            )}
+                          </div>
+
+                          <div>
+                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                              2. Enlace Directo en la Nube (Punto 2 - Se autocompleta al subir foto arriba):
+                            </span>
+                            <input
+                              type="text"
+                              value={newProduct.image}
+                              onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })}
+                              placeholder="https://i.postimg.cc/... o pega tu enlace"
+                              className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-mono"
+                            />
+                          </div>
+                        </div>
+                      </div>
                     </div>
 
                     <div className="sm:col-span-4 flex justify-end gap-2 pt-1">
