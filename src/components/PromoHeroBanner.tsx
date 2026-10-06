@@ -58,20 +58,19 @@ export const PromoHeroBanner: React.FC<PromoHeroBannerProps> = ({ onVerifyPWA })
       </div>
 
       {/* Main Orange Banner: Colección Caribeña - Hasta 50% OFF (Reduced to half height) */}
-      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#FF6B35] via-[#FF7540] to-[#FF8A50] text-white py-2.5 px-4 sm:py-3.5 sm:px-6 shadow-sm">
+      <div className="relative overflow-hidden rounded-2xl bg-gradient-to-r from-[#FF6B35] via-[#FF7540] to-[#FF8A50] text-white py-2 px-4 sm:py-2.5 sm:px-5 shadow-xs">
         {/* Subtle decorative circles (scaled down for half-height) */}
-        <div className="absolute -right-8 -top-8 w-28 h-28 rounded-full bg-white/10 pointer-events-none" />
-        <div className="absolute right-8 -bottom-10 w-32 h-32 rounded-full bg-white/10 pointer-events-none" />
-        <div className="absolute right-24 top-1 w-20 h-20 rounded-full bg-white/5 pointer-events-none" />
+        <div className="absolute -right-6 -top-6 w-20 h-20 rounded-full bg-white/10 pointer-events-none" />
+        <div className="absolute right-6 -bottom-8 w-24 h-24 rounded-full bg-white/10 pointer-events-none" />
 
-        <div className="relative z-10 max-w-md">
-          <span className="text-[10px] sm:text-[11px] font-black tracking-widest uppercase text-white/90 block leading-tight">
+        <div className="relative z-10 flex flex-col justify-center">
+          <span className="text-[10px] font-black tracking-widest uppercase text-white/90 leading-none">
             COLECCIÓN CARIBEÑA
           </span>
-          <h2 className="text-xl sm:text-2xl md:text-3xl font-black tracking-tight text-white mt-0.5 leading-tight">
+          <h2 className="text-lg sm:text-xl md:text-2xl font-black tracking-tight text-white mt-0.5 leading-tight">
             Hasta 50% OFF
           </h2>
-          <p className="text-[11px] sm:text-xs font-medium text-white/95 mt-0.5 leading-snug">
+          <p className="text-[11px] sm:text-xs font-medium text-white/95 leading-tight mt-0.5">
             Arte y personalización con sabor tropical
           </p>
         </div>

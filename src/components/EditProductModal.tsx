@@ -308,32 +308,6 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     }
   };
 
-  const handlePasteFromClipboard = async () => {
-    try {
-      if (navigator.clipboard && navigator.clipboard.readText) {
-        const text = await navigator.clipboard.readText();
-        if (text && text.trim()) {
-          const clean = text.trim();
-          setImage(clean);
-          processImageLink(clean);
-          setUploadSuccessMsg('¡Enlace pegado desde el portapapeles!');
-          setTimeout(() => setUploadSuccessMsg(null), 3000);
-          return;
-        }
-      }
-      setUploadSuccessMsg('Usa el campo de texto abajo para pegar (Ctrl+V o mantener presionado en el móvil)');
-      setTimeout(() => setUploadSuccessMsg(null), 4000);
-    } catch (e) {
-      setUploadSuccessMsg('Pega el enlace directamente en el campo de texto');
-      setTimeout(() => setUploadSuccessMsg(null), 3000);
-    }
-  };
-
-  const openCloudUploader = (service: 'postimages' | 'imgbb') => {
-    const url = service === 'postimages' ? 'https://postimages.org/' : 'https://imgbb.com/';
-    window.open(url, '_blank', 'noopener,noreferrer');
-  };
-
   // Handle Form Submit
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -610,49 +584,33 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                   <span>Imagen del Producto *</span>
                 </label>
 
-                {/* Cloud Sync Condition Notice (Requested by User) */}
-                <div className="p-3 rounded-xl bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-950/40 dark:to-blue-950/30 border border-sky-200/80 dark:border-sky-800/60 text-slate-700 dark:text-slate-300 space-y-2">
-                  <div className="flex items-center gap-2">
-                    <Cloud className="w-4 h-4 text-[#1BA7D9] shrink-0" />
-                    <span className="text-xs font-black text-[#0B2545] dark:text-sky-300">
-                      Sincronización Multidispositivo (Móvil y PC)
+                {/* Automatic Cloud Sync Condition (No manual buttons, automatic execution) */}
+                <div className="p-3 rounded-2xl bg-gradient-to-r from-sky-50 to-blue-50 dark:from-sky-950/40 dark:to-blue-950/30 border border-sky-200/80 dark:border-sky-800/60 text-slate-700 dark:text-slate-300 space-y-1.5">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-2">
+                      <Cloud className="w-4 h-4 text-[#1BA7D9] shrink-0" />
+                      <span className="text-xs font-black text-[#0B2545] dark:text-sky-300">
+                        Alojamiento en la Nube y Sincronización Automática
+                      </span>
+                    </div>
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20 shrink-0">
+                      Automático
                     </span>
                   </div>
                   <p className="text-[11px] leading-relaxed text-slate-600 dark:text-slate-300">
-                    <strong>Condición para sincronizar con todos los dispositivos:</strong> Si cambias la imagen desde el móvil, primero debes <strong>alojarla en la nube</strong>, luego copiar el enlace y pegarlo aquí para guardar el cambio.
+                    Sube tu foto desde el <strong>móvil o PC</strong>: el sistema la procesa, la aloja en la nube y la sincroniza en automático con todos tus dispositivos y la tienda.
                   </p>
-
-                  {/* Fast Action Buttons for Cloud Hosting */}
-                  <div className="flex flex-wrap items-center gap-1.5 pt-0.5">
-                    <button
-                      type="button"
-                      onClick={() => openCloudUploader('postimages')}
-                      className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-[#0B2545] dark:text-white border border-slate-200 dark:border-slate-700 text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                      title="Abrir Postimages para subir foto gratis desde el móvil"
+                  <div className="pt-0.5 text-[10px] text-slate-500 dark:text-slate-400 flex items-center gap-1.5 flex-wrap">
+                    <span>Galería en la nube vinculada:</span>
+                    <a
+                      href="https://postimg.cc/gallery/zJjp92t"
+                      target="_blank"
+                      rel="noreferrer"
+                      className="font-bold text-[#1BA7D9] hover:underline inline-flex items-center gap-1"
                     >
-                      <ExternalLink className="w-3 h-3 text-[#1BA7D9]" />
-                      <span>1. Subir a Postimages</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => openCloudUploader('imgbb')}
-                      className="px-2.5 py-1.5 rounded-lg bg-white dark:bg-slate-800 hover:bg-sky-50 dark:hover:bg-slate-700 text-[#0B2545] dark:text-white border border-slate-200 dark:border-slate-700 text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-2xs"
-                      title="Abrir ImgBB para subir foto gratis desde el móvil"
-                    >
-                      <ExternalLink className="w-3 h-3 text-[#1BA7D9]" />
-                      <span>1. Subir a ImgBB</span>
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={handlePasteFromClipboard}
-                      className="px-2.5 py-1.5 rounded-lg bg-[#1BA7D9]/15 hover:bg-[#1BA7D9]/25 text-[#0B2545] dark:text-sky-200 border border-[#1BA7D9]/30 text-[11px] font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
-                      title="Pegar enlace copiado desde el portapapeles"
-                    >
-                      <Copy className="w-3 h-3 text-[#1BA7D9]" />
-                      <span>2. Pegar Enlace Copiado</span>
-                    </button>
+                      <span>https://postimg.cc/gallery/zJjp92t</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
                   </div>
                 </div>
 
@@ -691,7 +649,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                     {/* Method 1: File Upload */}
                     <div>
                       <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                        1. Cargar imagen desde tu celular o computadora:
+                        1. Cargar foto desde tu celular o computadora:
                       </span>
                       <input
                         type="file"
@@ -713,8 +671,8 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                         )}
                         <span>
                           {isUploadingImage
-                            ? 'Optimizando y subiendo foto a la tienda...'
-                            : 'Seleccionar Foto / Archivo de mi Ordenador'}
+                            ? 'Alojando y sincronizando foto en la nube...'
+                            : 'Subir Foto desde tu Móvil o Computadora'}
                         </span>
                       </button>
 

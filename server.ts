@@ -336,8 +336,11 @@ app.post('/api/upload', (req, res) => {
       console.warn('Could not sync to dist/uploads:', e);
     }
 
+    const host = req.get('host');
+    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
+    const fullUrl = host ? `${proto}://${host}/uploads/${safeName}` : `/uploads/${safeName}`;
     const url = `/uploads/${safeName}`;
-    return res.json({ success: true, url, filename: safeName });
+    return res.json({ success: true, url, fullUrl, filename: safeName });
   } catch (err: any) {
     console.error('Error uploading image:', err);
     return res.status(500).json({ success: false, message: err.message });
@@ -418,8 +421,8 @@ async function startServer() {
     const vite = await createViteServer({
       server: {
         middlewareMode: true,
-        hmr: process.env.DISABLE_HMR !== 'true',
-        watch: process.env.DISABLE_HMR === 'true' ? null : {},
+        hmr: false,
+        watch: null,
       },
       appType: 'spa',
     });
