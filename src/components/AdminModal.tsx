@@ -38,7 +38,8 @@ import { CoralinkLogo } from './CoralinkLogo';
 import { EditProductModal } from './EditProductModal';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
 import { formatDirectImageUrl } from '../utils/imageUrlResolver';
-import { uploadImageToCloud } from '../utils/cloudImageUploader';
+import { uploadImageToCloud, openPostimagesUploader } from '../utils/cloudImageUploader';
+import { OfficialGalleryPickerModal } from './OfficialGalleryPickerModal';
 import {
   verifyAdminPassword,
   setAdminPassword,
@@ -245,6 +246,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   const [isUploadingNewImage, setIsUploadingNewImage] = useState(false);
   const [newImageUploadMsg, setNewImageUploadMsg] = useState<string | null>(null);
+  const [showGalleryPickerForNew, setShowGalleryPickerForNew] = useState(false);
   const newProductFileInputRef = useRef<HTMLInputElement | null>(null);
 
   const handleNewProductFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {

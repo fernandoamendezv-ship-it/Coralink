@@ -31,7 +31,8 @@ import {
   testImageUrl,
   isViewerPageUrl,
 } from '../utils/imageUrlResolver';
-import { uploadImageToCloud } from '../utils/cloudImageUploader';
+import { uploadImageToCloud, openPostimagesUploader } from '../utils/cloudImageUploader';
+import { OfficialGalleryPickerModal } from './OfficialGalleryPickerModal';
 
 interface EditProductModalProps {
   isOpen: boolean;
@@ -106,6 +107,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   const [isUploadingImage, setIsUploadingImage] = useState(false);
   const [uploadSuccessMsg, setUploadSuccessMsg] = useState<string | null>(null);
   const [localPathError, setLocalPathError] = useState(false);
+  const [showGalleryPicker, setShowGalleryPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   // Compress image on the client to guarantee small size (<80KB) and prevent localStorage quota errors
@@ -638,23 +640,61 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                         onChange={handleFileUpload}
                         className="hidden"
                       />
-                      <button
-                        type="button"
-                        onClick={() => fileInputRef.current?.click()}
-                        disabled={isUploadingImage}
-                        className="w-full py-2.5 px-3 rounded-xl border-2 border-dashed border-[#1BA7D9]/60 hover:border-[#1BA7D9] bg-sky-50/60 dark:bg-sky-950/20 hover:bg-sky-100/50 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 transition-colors cursor-pointer disabled:opacity-50"
-                      >
-                        {isUploadingImage ? (
-                          <Loader2 className="w-4 h-4 text-[#1BA7D9] animate-spin" />
-                        ) : (
-                          <Upload className="w-4 h-4 text-[#1BA7D9]" />
-                        )}
-                        <span>
-                          {isUploadingImage
-                            ? 'Alojando y sincronizando foto en la nube...'
-                            : 'Subir Foto desde tu Móvil o Computadora'}
-                        </span>
-                      </button>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                        <button
+                          type="button"
+                          onClick={() => {
+                            openPostimagesUploader((directUrl) => {
+                              setImage(directUrl);
+                              setLinkStatus('valid');
+                              setUploadSuccessMsg('¡Foto subida a Postimages y enlace directo colocado en el Punto 2!');
+                              setTimeout(() => setUploadSuccessMsg(null), 5000);
+                            });
+                          }}
+                          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#ff8555] hover:from-[#e85a26] hover:to-[#FF6B35] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
+                          title="Subir foto directamente a Postimages para generar enlace https://i.postimg.cc/..."
+                        >
+                          <Upload className="w-4 h-4 text-white" />
+                          <span>Subir a Postimages (i.postimg.cc)</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowGalleryPicker(true)}
+                          className="w-full py-2.5 px-3 rounded-xl bg-[#0B2545] hover:bg-[#144272] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
+                          title="Elegir foto ya existente de la galería oficial (postimg.cc/gallery/zJjp92t)"
+                        >
+                          <Sparkles className="w-4 h-4 text-[#1BA7D9]" />
+                          <span>Ver Galería Oficial (70 fotos)</span>
+                        </button>
+                      </div>
+
+                      <div className="pt-1.5">
+                        <input
+                          type="file"
+                          ref={fileInputRef}
+                          accept="image/*"
+                          onChange={handleFileUpload}
+                          className="hidden"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploadingImage}
+                          className="w-full py-2 px-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-[#1BA7D9] bg-slate-50 dark:bg-slate-800/50 hover:bg-sky-50/50 text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                        >
+                          {isUploadingImage ? (
+                            <Loader2 className="w-3.5 h-3.5 text-[#1BA7D9] animate-spin" />
+                          ) : (
+                            <Upload className="w-3.5 h-3.5 text-slate-400" />
+                          )}
+                          <span>
+                            {isUploadingImage
+                              ? 'Alojando y sincronizando foto en la nube...'
+                              : 'O subir archivo directo desde tu móvil o PC'}
+                          </span>
+                        </button>
+                      </div>
 
                       {uploadSuccessMsg && (
                         <div className="mt-1.5 p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 animate-in fade-in">
@@ -967,6 +1007,19 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
             </div>
           </div>
         )}
+
+        {/* Official Gallery Picker Modal (70 photos from https://postimg.cc/gallery/zJjp92t) */}
+        <OfficialGalleryPickerModal
+          isOpen={showGalleryPicker}
+          onClose={() => setShowGalleryPicker(false)}
+          onSelectImage={(selectedUrl) => {
+            setImage(selectedUrl);
+            setLinkStatus('valid');
+            setUploadSuccessMsg('¡Foto de galería oficial seleccionada y colocada en el Punto 2!');
+            setTimeout(() => setUploadSuccessMsg(null), 4000);
+          }}
+          currentImage={image}
+        />
       </div>
     </div>
   );

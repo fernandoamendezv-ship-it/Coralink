@@ -1,4 +1,5 @@
-import { resolveToDirectImageUrl, formatDirectImageUrl } from './imageUrlResolver';
+import { resolveToDirectImageUrl } from './imageUrlResolver';
+import { POSTIMAGES_GALLERY_ID } from './postimagesGallery';
 
 export interface CloudUploadResult {
   success: boolean;
@@ -64,53 +65,95 @@ export async function compressImage(
 }
 
 /**
+ * Opens Postimages official uploader window targeting gallery zJjp92t.
+ * Automatically listens for the postMessage event sent by Postimages upon completion,
+ * extracts the direct CDN link (e.g., https://i.postimg.cc/Z5QhNyYX/Llavero-faja-de-cuerina.jpg),
+ * places it into Punto 2, and closes the popup.
+ */
+export function openPostimagesUploader(
+  onSuccess: (directUrl: string) => void,
+  gallery = POSTIMAGES_GALLERY_ID
+): Window | null {
+  const windowId = `pi_${Date.now()}`;
+  const uploadUrl = `https://postimages.org/upload?mode=hotlink&areaid=${windowId}&gallery=${encodeURIComponent(
+    gallery
+  )}`;
+
+  const width = 720;
+  const height = 650;
+  const left = typeof window !== 'undefined' ? window.screen.width / 2 - width / 2 : 100;
+  const top = typeof window !== 'undefined' ? window.screen.height / 2 - height / 2 : 100;
+
+  const popup = window.open(
+    uploadUrl,
+    windowId,
+    `width=${width},height=${height},top=${top},left=${left},scrollbars=yes,resizable=yes`
+  );
+
+  const messageHandler = (event: MessageEvent) => {
+    try {
+      const data = event.data;
+      if (!data) return;
+
+      let textToSearch = '';
+      if (typeof data === 'string') {
+        textToSearch = data;
+      } else if (data.message && typeof data.message === 'string') {
+        textToSearch = data.message;
+      } else if (data.result && typeof data.result === 'string') {
+        textToSearch = data.result;
+      } else if (data.url && typeof data.url === 'string') {
+        textToSearch = data.url;
+      }
+
+      if (textToSearch) {
+        // 1. Direct match: https://i.postimg.cc/...
+        const directMatch = textToSearch.match(
+          /https:\/\/i\.postimg\.cc\/[a-zA-Z0-9_\-]+\/[^"'\s<\])\\]+/i
+        );
+        if (directMatch && directMatch[0]) {
+          window.removeEventListener('message', messageHandler);
+          onSuccess(directMatch[0]);
+          if (popup && !popup.closed) {
+            popup.close();
+          }
+          return;
+        }
+
+        // 2. Viewer match: https://postimg.cc/...
+        const viewerMatch = textToSearch.match(/https:\/\/postimg\.cc\/[a-zA-Z0-9_\-]+/i);
+        if (viewerMatch && viewerMatch[0]) {
+          window.removeEventListener('message', messageHandler);
+          resolveToDirectImageUrl(viewerMatch[0]).then((resolved) => {
+            if (resolved) {
+              onSuccess(resolved);
+            }
+          });
+          if (popup && !popup.closed) {
+            popup.close();
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('Error handling postMessage from Postimages:', e);
+    }
+  };
+
+  window.addEventListener('message', messageHandler);
+
+  return popup;
+}
+
+/**
  * Automatically uploads a photo from mobile or PC directly to the cloud.
- * 1. Attempts direct upload to Postimages under the user gallery: https://postimg.cc/gallery/zJjp92t
- * 2. If Postimages returns the viewer URL, resolves it to the high-speed direct CDN link (https://i.postimg.cc/...)
- * 3. Fallback: Uploads to the cloud server (/api/upload) to generate a public permanent HTTPS URL.
- * 4. Fallback 2: Uses the compressed high-efficiency data URL that persists in Firestore across all devices.
  */
 export async function uploadImageToCloud(
   file: File,
   productId?: string
 ): Promise<CloudUploadResult> {
-  // 1. Prepare compressed version for reliability
   const compressedDataUrl = await compressImage(file);
 
-  // Strategy 1: Attempt direct upload to Postimages (Gallery zJjp92t) from browser
-  try {
-    const session = Date.now() + Math.random().toString().substring(1);
-    const postimgForm = new FormData();
-    postimgForm.append('upload_session', session);
-    postimgForm.append('numfiles', '1');
-    postimgForm.append('gallery', 'zJjp92t');
-    postimgForm.append('ui', '[true,true,"250",0]');
-    postimgForm.append('file', file, file.name);
-
-    const postimgRes = await fetch('https://postimages.org/json/rr', {
-      method: 'POST',
-      body: postimgForm,
-    });
-
-    if (postimgRes.ok) {
-      const data = await postimgRes.json();
-      if (data && data.url) {
-        // Resolve viewer page (e.g., https://postimg.cc/xyz) to direct CDN image (https://i.postimg.cc/xyz/image.jpg)
-        const direct = await resolveToDirectImageUrl(data.url);
-        const finalDirect = direct || data.url;
-        return {
-          success: true,
-          directUrl: finalDirect,
-          source: 'postimages',
-          message: '¡Foto subida a la nube de Postimages y enlace directo colocado en el Punto 2!',
-        };
-      }
-    }
-  } catch (err) {
-    console.warn('Direct Postimages browser upload notice, trying cloud server fallback:', err);
-  }
-
-  // Strategy 2: Upload to cloud server endpoint /api/upload
+  // Strategy 1: Upload to cloud server endpoint /api/upload
   try {
     const res = await fetch('/api/upload', {
       method: 'POST',
@@ -119,7 +162,7 @@ export async function uploadImageToCloud(
         dataUrl: compressedDataUrl,
         productId: productId || 'custom',
         filename: file.name,
-        gallery: 'zJjp92t',
+        gallery: POSTIMAGES_GALLERY_ID,
       }),
     });
 
@@ -139,7 +182,7 @@ export async function uploadImageToCloud(
     console.warn('Server upload notice, using persistent compressed image:', err);
   }
 
-  // Strategy 3: Compressed image fallback (works seamlessly in Firestore across all devices)
+  // Strategy 2: Compressed image fallback (works seamlessly in Firestore across all devices)
   if (compressedDataUrl) {
     return {
       success: true,

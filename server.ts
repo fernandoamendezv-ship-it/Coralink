@@ -336,9 +336,13 @@ app.post('/api/upload', (req, res) => {
       console.warn('Could not sync to dist/uploads:', e);
     }
 
-    const host = req.get('host');
+    const host = req.get('host') || '';
     const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-    const fullUrl = host ? `${proto}://${host}/uploads/${safeName}` : `/uploads/${safeName}`;
+    const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
+    const publicOrigin = isLocal
+      ? 'https://ais-dev-3xvey46v55czwjgm3744yj-705766349319.us-west2.run.app'
+      : `${proto}://${host}`;
+    const fullUrl = `${publicOrigin}/uploads/${safeName}`;
     const url = `/uploads/${safeName}`;
     return res.json({ success: true, url, fullUrl, filename: safeName });
   } catch (err: any) {
