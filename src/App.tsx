@@ -483,14 +483,14 @@ export default function App() {
       });
   }, [products, selectedCategory, selectedSubCategory, searchQuery, sortBy]);
 
-  // Flash Deals special selection (shows exactly 5 products, prioritizing admin-enabled flash deals)
+  // Ofertas Flash: muestra la cantidad completa que desee el usuario según estén seleccionadas
   const flashDealProducts = useMemo(() => {
     const explicit = products.filter((p) => p.isFlashDeal === true);
     if (explicit.length > 0) {
-      return explicit.slice(0, 5);
+      return explicit; // Sin límite arbitrario: muestra todos los seleccionados
     }
-    // Fallback if none marked yet: items with discount
-    return products.filter((p) => p.originalPrice && p.originalPrice > p.price).slice(0, 5);
+    // Si no hay productos marcados explícitamente, mostrar los que tienen precio de oferta
+    return products.filter((p) => p.originalPrice && p.originalPrice > p.price);
   }, [products]);
 
   // Quintuplicated list for seamless infinite loop on mobile touch scroll

@@ -17,6 +17,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { CoralinkLogo } from './CoralinkLogo';
+import { PWAInstallButton } from './PWAInstallButton';
 
 interface HeaderProps {
   searchQuery: string;
@@ -303,6 +304,9 @@ export const Header: React.FC<HeaderProps> = ({
                 </div>
 
                 <div className="p-2 space-y-1">
+                  {/* Descargar e Instalar App (PWA Prominente) */}
+                  <PWAInstallButton variant="menu" />
+
                   {/* GLOBAL DARK MODE TOGGLE OPTION IN MENU (Requested) */}
                   <div className="p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors flex items-center justify-between">
                     <div className="flex items-center gap-2.5">
@@ -469,8 +473,11 @@ export const Header: React.FC<HeaderProps> = ({
             </button>
           </div>
 
-          {/* Right: Share + Quick Dark/Light Toggle + Favorites + Cart Buttons */}
+          {/* Right: Install App + Share + Synchronization + Favorites + Cart Buttons */}
           <div className="flex items-center gap-1.5 sm:gap-2">
+            {/* Install / Download App Button right in the main bar */}
+            <PWAInstallButton variant="header" />
+
             {/* Share App Button in Main Bar */}
             <div className="relative">
               <button

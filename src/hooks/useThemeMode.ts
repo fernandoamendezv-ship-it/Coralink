@@ -10,13 +10,11 @@ export function useThemeMode() {
         if (stored === 'light' || stored === 'dark') {
           return stored;
         }
-        if (window.matchMedia('(prefers-color-scheme: dark)').matches) {
-          return 'dark';
-        }
       } catch (e) {
         console.error('Error reading theme from storage:', e);
       }
     }
+    // New users always open the app in light mode
     return 'light';
   });
 
