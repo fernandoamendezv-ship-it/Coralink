@@ -2,12 +2,18 @@ import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import fs from 'fs';
+import {
+  POSTIMAGES_GALLERY_ITEMS,
+  POSTIMAGES_GALLERY_URL,
+  findBestPostimagesMatch,
+} from './src/data/postimagesGallery';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 const app = express();
-const PORT = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000;
+// The dev server must always listen on port 3000 in the AI Studio environment
+const PORT = 3000;
 const isProduction = process.env.NODE_ENV === 'production';
 
 app.use(express.json({ limit: '50mb' }));
@@ -16,13 +22,60 @@ app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 // Serve uploaded product images statically
 app.use('/uploads', express.static(path.join(__dirname, 'public', 'uploads')));
 
+// PWA: Explicitly serve Service Worker and Manifest with proper MIME types and headers
+app.get('/sw.js', (req, res) => {
+  res.setHeader('Content-Type', 'application/javascript; charset=utf-8');
+  res.setHeader('Service-Worker-Allowed', '/');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.join(__dirname, 'public', 'sw.js'));
+});
+
+app.get(['/manifest.webmanifest', '/manifest.json'], (req, res) => {
+  res.setHeader('Content-Type', 'application/manifest+json; charset=utf-8');
+  res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+  res.sendFile(path.join(__dirname, 'public', 'manifest.webmanifest'));
+});
+
+// Serve public directory statically
+app.use(express.static(path.join(__dirname, 'public')));
+
 // Persistent products storage file
 const DATA_FILE = path.join(__dirname, 'coralink-products-data.json');
+const DELETED_FILE = path.join(__dirname, 'coralink-deleted-ids.json');
+
+function readDeletedIds(): string[] {
+  try {
+    if (fs.existsSync(DELETED_FILE)) {
+      const parsed = JSON.parse(fs.readFileSync(DELETED_FILE, 'utf-8'));
+      if (Array.isArray(parsed)) return parsed;
+    }
+  } catch (err) {
+    console.error('Error reading deleted products file:', err);
+  }
+  return [];
+}
+
+function recordDeletedId(productId: string) {
+  try {
+    const list = readDeletedIds();
+    if (!list.includes(productId)) {
+      list.push(productId);
+      fs.writeFileSync(DELETED_FILE, JSON.stringify(list, null, 2), 'utf-8');
+    }
+  } catch (err) {
+    console.error('Error recording deleted ID:', err);
+  }
+}
 
 function readStoredProducts() {
   try {
     if (fs.existsSync(DATA_FILE)) {
-      return JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+      const products = JSON.parse(fs.readFileSync(DATA_FILE, 'utf-8'));
+      if (Array.isArray(products)) {
+        const deleted = new Set(readDeletedIds());
+        return products.filter((p: any) => p && p.id && !deleted.has(p.id));
+      }
+      return products;
     }
   } catch (err) {
     console.error('Error reading stored products:', err);
@@ -294,7 +347,7 @@ app.get('/api/resolve-image', async (req, res) => {
 // Endpoint to upload and persist product images directly to the server
 app.post('/api/upload', (req, res) => {
   try {
-    const { dataUrl, productId } = req.body;
+    const { dataUrl, productId, filename, title, category } = req.body;
     if (!dataUrl || typeof dataUrl !== 'string') {
       return res.status(400).json({ success: false, message: 'Falta la imagen' });
     }
@@ -336,19 +389,38 @@ app.post('/api/upload', (req, res) => {
       console.warn('Could not sync to dist/uploads:', e);
     }
 
-    const host = req.get('host') || '';
-    const proto = req.headers['x-forwarded-proto'] || req.protocol || 'https';
-    const isLocal = host.includes('localhost') || host.includes('127.0.0.1');
-    const publicOrigin = isLocal
-      ? 'https://ais-dev-3xvey46v55czwjgm3744yj-705766349319.us-west2.run.app'
-      : `${proto}://${host}`;
-    const fullUrl = `${publicOrigin}/uploads/${safeName}`;
-    const url = `/uploads/${safeName}`;
-    return res.json({ success: true, url, fullUrl, filename: safeName });
+    // Match image directly with user Postimages gallery: https://postimg.cc/gallery/zJjp92t
+    const matched = findBestPostimagesMatch({
+      filename: filename || safeName,
+      title: title || '',
+      category: category || '',
+    });
+
+    const directUrl = matched.url;
+    // Always provide the public Postimages direct URL (e.g. https://i.postimg.cc/Z5QhNyYX/Llavero-faja-de-cuerina.jpg)
+    return res.json({
+      success: true,
+      url: directUrl,
+      fullUrl: directUrl,
+      directUrl: directUrl,
+      filename: safeName,
+      matchedTitle: matched.title,
+      galleryUrl: POSTIMAGES_GALLERY_URL,
+      source: 'postimages',
+    });
   } catch (err: any) {
     console.error('Error uploading image:', err);
     return res.status(500).json({ success: false, message: err.message });
   }
+});
+
+// Endpoint to list all photos from user's Postimages gallery
+app.get('/api/gallery-items', (_req, res) => {
+  return res.json({
+    success: true,
+    galleryUrl: POSTIMAGES_GALLERY_URL,
+    items: POSTIMAGES_GALLERY_ITEMS,
+  });
 });
 
 app.post('/api/products', async (req, res) => {
@@ -415,6 +487,41 @@ export const INITIAL_PRODUCTS: Product[] = ${JSON.stringify(products, null, 2)};
   } else {
     throw new Error('Failed to write products to storage');
   }
+});
+
+// Explicit product deletion API endpoint
+app.delete('/api/products/:id', (req, res) => {
+  const { id } = req.params;
+  if (!id) {
+    return res.status(400).json({ success: false, message: 'Missing product ID parameter' });
+  }
+
+  recordDeletedId(id);
+
+  try {
+    const raw = readStoredProducts();
+    if (Array.isArray(raw)) {
+      const remaining = raw.filter((p: any) => p?.id !== id);
+      writeStoredProducts(remaining);
+
+      // Keep src/data/initialProducts.ts synchronized
+      const initialProductsPath = path.join(__dirname, 'src', 'data', 'initialProducts.ts');
+      if (fs.existsSync(initialProductsPath)) {
+        const code = `import { Product } from '../types';
+
+export const CATALOG_VERSION = "${new Date().toISOString().replace(/[-:T.]/g, '').slice(0, 14)}";
+
+export const INITIAL_PRODUCTS: Product[] = ${JSON.stringify(remaining, null, 2)};
+`;
+        fs.writeFileSync(initialProductsPath, code, 'utf-8');
+      }
+    }
+  } catch (err) {
+    console.error('Error during backend product delete:', err);
+  }
+
+  console.log(`Backend confirmed deletion of product: ${id}`);
+  res.json({ success: true, message: `Product ${id} permanently deleted` });
 });
 
 // Vite or Static files handling

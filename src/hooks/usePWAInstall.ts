@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 
-interface BeforeInstallPromptEvent extends Event {
+export interface BeforeInstallPromptEvent extends Event {
   prompt: () => Promise<void>;
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed'; platform: string }>;
 }
@@ -14,10 +14,26 @@ export interface SWStatus {
   scriptUrl?: string;
 }
 
+export interface InstallResult {
+  success: boolean;
+  outcome?: 'accepted' | 'dismissed';
+  reason?: string;
+}
+
 export function usePWAInstall() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  // Check if early capture in index.html already caught the prompt
+  const getEarlyPrompt = (): BeforeInstallPromptEvent | null => {
+    if (typeof window !== 'undefined' && (window as any).__pwaInstallPrompt) {
+      return (window as any).__pwaInstallPrompt;
+    }
+    return null;
+  };
+
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(getEarlyPrompt);
   const [isInstalled, setIsInstalled] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
+  const [isIframe, setIsIframe] = useState(false);
+  const [isInstalling, setIsInstalling] = useState(false);
   const [hasUpdate, setHasUpdate] = useState(false);
   const [isUpdating, setIsUpdating] = useState(false);
   const [swStatus, setSwStatus] = useState<SWStatus>({
@@ -52,7 +68,6 @@ export function usePWAInstall() {
       };
       setSwStatus(status);
 
-      // Check if an update is waiting
       if (reg?.waiting) {
         setHasUpdate(true);
       }
@@ -76,19 +91,16 @@ export function usePWAInstall() {
     if (typeof window === 'undefined') return;
     setIsUpdating(true);
     try {
-      // PRESERVE user products and create safety backup!
       const currentProducts = localStorage.getItem('coralink_custom_products');
       if (currentProducts) {
         localStorage.setItem('coralink_custom_products_backup', currentProducts);
       }
 
-      // Clear Service Worker Cache API
       if ('caches' in window) {
         const cacheNames = await caches.keys();
         await Promise.all(cacheNames.map((name) => caches.delete(name)));
       }
 
-      // Update Service Worker
       if ('serviceWorker' in navigator) {
         const reg = await navigator.serviceWorker.getRegistration();
         if (reg?.waiting) {
@@ -101,100 +113,144 @@ export function usePWAInstall() {
     } catch (e) {
       console.error('Error during app update:', e);
     } finally {
-      // Force reload ignoring cache
       window.location.reload();
     }
   }, []);
 
   useEffect(() => {
-    // Detect standalone mode (already installed on homescreen)
+    if (typeof window === 'undefined') return;
+
+    // Detect standalone mode (already installed on homescreen / app window)
     const isStandalone =
-      typeof window !== 'undefined' &&
-      (window.matchMedia('(display-mode: standalone)').matches ||
-        (window.navigator as unknown as { standalone?: boolean }).standalone === true);
+      window.matchMedia('(display-mode: standalone)').matches ||
+      (window.navigator as unknown as { standalone?: boolean }).standalone === true;
     setIsInstalled(isStandalone);
 
     // Detect iOS devices
-    const userAgent = typeof window !== 'undefined' ? window.navigator.userAgent.toLowerCase() : '';
+    const userAgent = window.navigator.userAgent.toLowerCase();
     const isIOSDevice = /iphone|ipad|ipod/.test(userAgent);
     setIsIOS(isIOSDevice);
 
+    // Detect if running inside an iframe (like AI Studio preview)
+    const inIframe = window.self !== window.top;
+    setIsIframe(inIframe);
+
+    // Pick up early prompt if already captured
+    if ((window as any).__pwaInstallPrompt) {
+      setDeferredPrompt((window as any).__pwaInstallPrompt);
+    }
+
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
+      (window as any).__pwaInstallPrompt = e;
       setDeferredPrompt(e as BeforeInstallPromptEvent);
+      console.log('[PWA] beforeinstallprompt event captured in hook');
+    };
+
+    const handlePromptAvailable = (e: any) => {
+      const promptEvent = e.detail || (window as any).__pwaInstallPrompt;
+      if (promptEvent) {
+        setDeferredPrompt(promptEvent as BeforeInstallPromptEvent);
+      }
     };
 
     const handleAppInstalled = () => {
       setIsInstalled(true);
       setDeferredPrompt(null);
+      (window as any).__pwaInstallPrompt = null;
+      console.log('[PWA] App installation completed');
     };
 
-    if (typeof window !== 'undefined') {
-      window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-      window.addEventListener('appinstalled', handleAppInstalled);
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('pwa-prompt-available', handlePromptAvailable);
+    window.addEventListener('appinstalled', handleAppInstalled);
 
-      // Check initial SW state
-      checkSW();
+    // Initial SW verification
+    checkSW();
 
-      // Listen for registration updates
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistration().then((reg) => {
-          if (!reg) return;
+    // Listen for registration updates
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistration().then((reg) => {
+        if (!reg) return;
 
-          if (reg.waiting) {
-            setHasUpdate(true);
+        if (reg.waiting) {
+          setHasUpdate(true);
+        }
+
+        reg.addEventListener('updatefound', () => {
+          const installing = reg.installing;
+          if (installing) {
+            installing.addEventListener('statechange', () => {
+              if (installing.state === 'installed' && navigator.serviceWorker.controller) {
+                setHasUpdate(true);
+              }
+            });
           }
-
-          reg.addEventListener('updatefound', () => {
-            const installing = reg.installing;
-            if (installing) {
-              installing.addEventListener('statechange', () => {
-                if (installing.state === 'installed' && navigator.serviceWorker.controller) {
-                  setHasUpdate(true);
-                }
-              });
-            }
-          });
         });
+      });
 
-        // Controller change listener: update SW state without auto-reloading page
-        const handleControllerChange = () => {
-          checkSW();
-        };
-        navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
+      const handleControllerChange = () => {
+        checkSW();
+      };
+      navigator.serviceWorker.addEventListener('controllerchange', handleControllerChange);
 
-        return () => {
-          window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-          window.removeEventListener('appinstalled', handleAppInstalled);
-          navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
-        };
-      }
+      return () => {
+        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+        window.removeEventListener('pwa-prompt-available', handlePromptAvailable);
+        window.removeEventListener('appinstalled', handleAppInstalled);
+        navigator.serviceWorker.removeEventListener('controllerchange', handleControllerChange);
+      };
     }
 
     return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-        window.removeEventListener('appinstalled', handleAppInstalled);
-      }
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('pwa-prompt-available', handlePromptAvailable);
+      window.removeEventListener('appinstalled', handleAppInstalled);
     };
-  }, [checkSW, hasUpdate]);
+  }, [checkSW]);
 
-  const install = async () => {
-    if (!deferredPrompt) return false;
-    await deferredPrompt.prompt();
-    const { outcome } = await deferredPrompt.userChoice;
-    if (outcome === 'accepted') {
-      setIsInstalled(true);
-      setDeferredPrompt(null);
-      return true;
+  /**
+   * Directly triggers the native browser install dialog
+   */
+  const install = async (): Promise<InstallResult> => {
+    const promptToUse = deferredPrompt || (typeof window !== 'undefined' ? (window as any).__pwaInstallPrompt : null);
+    
+    if (!promptToUse || typeof promptToUse.prompt !== 'function') {
+      console.warn('[PWA] Cannot trigger install: No deferredPrompt available yet');
+      return { success: false, reason: 'no-prompt' };
     }
-    return false;
+
+    setIsInstalling(true);
+    try {
+      await promptToUse.prompt();
+      const choice = await promptToUse.userChoice;
+      console.log('[PWA] User install choice outcome:', choice?.outcome);
+
+      if (choice && choice.outcome === 'accepted') {
+        setIsInstalled(true);
+        setDeferredPrompt(null);
+        if (typeof window !== 'undefined') {
+          (window as any).__pwaInstallPrompt = null;
+        }
+        setIsInstalling(false);
+        return { success: true, outcome: 'accepted' };
+      }
+
+      setIsInstalling(false);
+      return { success: false, outcome: 'dismissed' };
+    } catch (err: any) {
+      console.error('[PWA] Error calling prompt():', err);
+      setIsInstalling(false);
+      return { success: false, reason: err?.message || 'prompt-error' };
+    }
   };
 
   return {
-    isInstallable: !!deferredPrompt,
+    isInstallable: !!deferredPrompt || (typeof window !== 'undefined' && !!(window as any).__pwaInstallPrompt),
     isInstalled,
     isIOS,
+    isIframe,
+    isInstalling,
     hasUpdate,
     isUpdating,
     updateApp,

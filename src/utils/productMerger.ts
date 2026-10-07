@@ -2,6 +2,106 @@ import { Product } from '../types';
 import { isReferenceLogo, CORALINK_LOGO_URL } from './logoConstants';
 import { formatDirectImageUrl } from './imageUrlResolver';
 
+const DELETED_PRODUCTS_KEY = 'coralink_deleted_product_ids';
+
+/**
+ * Retrieves the set of permanently deleted product IDs from localStorage.
+ */
+export function getDeletedProductIds(): Set<string> {
+  if (typeof window === 'undefined') return new Set();
+  try {
+    const raw = localStorage.getItem(DELETED_PRODUCTS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return new Set(
+          parsed.filter((id) => typeof id === 'string' && id.trim().length > 0)
+        );
+      }
+    }
+  } catch (e) {
+    console.warn('Error reading deleted products set:', e);
+  }
+  return new Set();
+}
+
+/**
+ * Permanently registers a product ID as deleted, cleaning it across all
+ * browser caches, carts, backups, and favorites so it NEVER resurrects.
+ */
+export function markProductAsDeleted(productId: string): void {
+  if (typeof window === 'undefined' || !productId) return;
+  try {
+    const deleted = getDeletedProductIds();
+    deleted.add(productId);
+    localStorage.setItem(DELETED_PRODUCTS_KEY, JSON.stringify(Array.from(deleted)));
+
+    // Clean from custom products storage
+    const cleanList = (key: string) => {
+      const raw = localStorage.getItem(key);
+      if (raw) {
+        try {
+          const list = JSON.parse(raw);
+          if (Array.isArray(list)) {
+            const filtered = list.filter((p: any) => p?.id !== productId);
+            localStorage.setItem(key, JSON.stringify(filtered));
+          }
+        } catch {}
+      }
+    };
+    cleanList('coralink_custom_products');
+    cleanList('coralink_custom_products_backup');
+
+    // Clean from session storage
+    try {
+      const rawSession = sessionStorage.getItem('coralink_custom_products');
+      if (rawSession) {
+        const list = JSON.parse(rawSession);
+        if (Array.isArray(list)) {
+          const filtered = list.filter((p: any) => p?.id !== productId);
+          sessionStorage.setItem('coralink_custom_products', JSON.stringify(filtered));
+        }
+      }
+    } catch {}
+
+    // Clean from cart so cart snapshots cannot restore deleted product
+    try {
+      const rawCart = localStorage.getItem('coralink_cart');
+      if (rawCart) {
+        const cart = JSON.parse(rawCart);
+        if (Array.isArray(cart)) {
+          const filtered = cart.filter((item: any) => item?.product?.id !== productId);
+          localStorage.setItem('coralink_cart', JSON.stringify(filtered));
+        }
+      }
+    } catch {}
+
+    // Clean from favorites
+    try {
+      const rawFav = localStorage.getItem('coralink_favorites');
+      if (rawFav) {
+        const favs = JSON.parse(rawFav);
+        if (Array.isArray(favs)) {
+          const filtered = favs.filter((id: string) => id !== productId);
+          localStorage.setItem('coralink_favorites', JSON.stringify(filtered));
+        }
+      }
+    } catch {}
+  } catch (e) {
+    console.warn('Error marking product as deleted:', e);
+  }
+}
+
+/**
+ * Filters out all products whose IDs are registered as deleted.
+ */
+export function filterOutDeletedProducts(products: Product[]): Product[] {
+  if (!Array.isArray(products)) return [];
+  const deleted = getDeletedProductIds();
+  if (deleted.size === 0) return products;
+  return products.filter((p) => p && p.id && !deleted.has(p.id));
+}
+
 /**
  * Checks whether a product has been customized by the user
  * (custom image, modified price, modified title, description, or custom product ID).
@@ -40,40 +140,56 @@ export function isProductCustomized(product: Product, defaultProduct?: Product):
 }
 
 /**
- * Merges a list of products while strictly preserving user customizations.
- * Any custom photo, custom price, custom title or custom product is NEVER overwritten.
+ * Merges existing products with default products, strictly obeying:
+ * 1. Deleted products are NEVER resurrected.
+ * 2. If the user already has a saved catalog, missing default products that
+ *    were deleted or removed are NOT re-added.
+ * 3. User customizations (photos, prices, descriptions, stock) are preserved.
  */
 export function mergePreservingCustomizations(
   existingProducts: Product[],
   defaultProducts: Product[]
 ): Product[] {
-  if (!Array.isArray(existingProducts) || existingProducts.length === 0) {
-    return defaultProducts;
+  const deletedIds = getDeletedProductIds();
+
+  const cleanExisting = Array.isArray(existingProducts)
+    ? existingProducts.filter((p) => p && p.id && !deletedIds.has(p.id))
+    : [];
+
+  // First time ever: no local storage exists at all
+  if (cleanExisting.length === 0) {
+    return defaultProducts.filter((p) => !deletedIds.has(p.id));
   }
 
-  const existingMap = new Map<string, Product>();
-  const defaultIds = new Set(defaultProducts.map((p) => p.id));
-
-  existingProducts.forEach((p) => {
-    if (p && p.id) {
-      existingMap.set(p.id, p);
-    }
+  // If the user already has an active catalog, use cleanExisting as the base
+  // and do NOT resurrect items that are missing (since the user may have deleted them)
+  const defaultMap = new Map<string, Product>();
+  defaultProducts.forEach((d) => {
+    if (d && d.id) defaultMap.set(d.id, d);
   });
 
-  // Map defaults, preserving customizations
-  const merged: Product[] = defaultProducts.map((def) => {
-    const existing = existingMap.get(def.id);
-    if (!existing) return def;
+  const merged: Product[] = cleanExisting.map((existing) => {
+    const def = defaultMap.get(existing.id);
+    if (!def) {
+      // User-created product
+      return {
+        ...existing,
+        rating: existing.rating ?? 5.0,
+        reviewsCount: existing.reviewsCount ?? 24,
+        salesCount: existing.salesCount ?? 60,
+        image:
+          existing.image && !isReferenceLogo(existing.image)
+            ? existing.image
+            : CORALINK_LOGO_URL,
+      };
+    }
 
     const customized = isProductCustomized(existing, def);
     if (customized) {
       const formatted = existing.image ? formatDirectImageUrl(existing.image) : '';
       let finalImage =
-        formatted && !isReferenceLogo(formatted)
-          ? formatted
-          : CORALINK_LOGO_URL;
+        formatted && !isReferenceLogo(formatted) ? formatted : CORALINK_LOGO_URL;
 
-      // If server has a custom photo and existing local only had the reference logo, use server's photo
       if (def.image && !isReferenceLogo(def.image) && isReferenceLogo(existing.image)) {
         finalImage = def.image;
       }
@@ -83,40 +199,35 @@ export function mergePreservingCustomizations(
         ...existing,
         rating: existing.rating ?? def.rating ?? 5.0,
         reviewsCount: existing.reviewsCount ?? def.reviewsCount ?? 24,
-        salesCount: existing.salesCount ?? def.salesCount ?? 60,
+        salesCount: existing.salesCount ?? 60,
         image: finalImage,
       };
     }
 
-    // Not customized: use default product with new logo
-    return def;
+    return {
+      ...def,
+      ...existing,
+    };
   });
 
-  // Also preserve any custom products created by user that are not in defaults!
-  existingProducts.forEach((p) => {
-    if (p && p.id && !defaultIds.has(p.id)) {
-      merged.push({
-        ...p,
-        rating: p.rating ?? 5.0,
-        reviewsCount: p.reviewsCount ?? 24,
-        salesCount: p.salesCount ?? 60,
-        image: p.image && !isReferenceLogo(p.image) ? p.image : CORALINK_LOGO_URL,
-      });
-    }
-  });
-
-  return merged;
+  return merged.filter((p) => !deletedIds.has(p.id));
 }
 
 /**
  * Deep scan of all browser storage locations to recover any lost customized products
- * (e.g. from previous backups, cart history, or sessionStorage).
+ * (e.g. from previous backups, cart history, or sessionStorage) while strictly
+ * filtering out any product that was intentionally deleted.
  */
 export function scanAndRecoverCustomProducts(
   defaultProducts: Product[]
 ): { recoveredProducts: Product[]; customCount: number } {
+  const deletedIds = getDeletedProductIds();
+
   if (typeof window === 'undefined') {
-    return { recoveredProducts: defaultProducts, customCount: 0 };
+    return {
+      recoveredProducts: defaultProducts.filter((p) => !deletedIds.has(p.id)),
+      customCount: 0,
+    };
   }
 
   const recoveredMap = new Map<string, Product>();
@@ -125,8 +236,9 @@ export function scanAndRecoverCustomProducts(
   // Helper to ingest and examine a candidate product
   const ingest = (cand: any) => {
     if (!cand || !cand.id || typeof cand.id !== 'string') return;
-    const existing = recoveredMap.get(cand.id);
+    if (deletedIds.has(cand.id)) return; // Strictly ignore any deleted product
 
+    const existing = recoveredMap.get(cand.id);
     const hasPhoto = cand.image && !isReferenceLogo(cand.image);
     const existingHasPhoto = existing?.image && !isReferenceLogo(existing.image);
 

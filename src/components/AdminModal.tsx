@@ -33,6 +33,7 @@ import {
   Zap,
   Layers,
   Trash2,
+  Loader2,
 } from 'lucide-react';
 import { CoralinkLogo } from './CoralinkLogo';
 import { EditProductModal } from './EditProductModal';
@@ -49,12 +50,13 @@ import {
   setRecoveryPhone,
 } from '../utils/adminSecurity';
 import { saveProductToFirestore, deleteProductFromFirestore } from '../services/firebaseProductsService';
+import { markProductAsDeleted, filterOutDeletedProducts } from '../utils/productMerger';
 
 interface AdminModalProps {
   isOpen: boolean;
   onClose: () => void;
   products: Product[];
-  onSaveProducts: (updated: Product[]) => void;
+  onSaveProducts: (updated: Product[], deletedProductId?: string) => void;
   onResetToDefaults: () => void;
   isAdminUnlocked: boolean;
   onUnlockAdmin: () => void;
@@ -94,9 +96,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [selectedProductToEdit, setSelectedProductToEdit] = useState<Product | null>(null);
   const [recoverToastMsg, setRecoverToastMsg] = useState<string | null>(null);
 
-  // Keep local products in sync when parent products change
+  // Keep local products in sync when parent products change, strictly filtering out deleted items
   useEffect(() => {
-    setLocalProducts(products);
+    setLocalProducts(filterOutDeletedProducts(products));
   }, [products]);
 
   const handleRecover = () => {
@@ -124,12 +126,26 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
 
   const handleDeleteProduct = (productId: string) => {
+    // 1. Mark permanently deleted in storage and clean all caches
+    markProductAsDeleted(productId);
+
+    // 2. Remove from local state
     const updated = localProducts.filter((p) => p.id !== productId);
     setLocalProducts(updated);
+
+    // 3. Delete from Firestore cloud database
     deleteProductFromFirestore(productId).catch((err) =>
       console.warn('Direct Firestore delete notice:', err)
     );
-    onSaveProducts(updated);
+
+    // 4. Delete on backend server and update initialProducts.ts
+    fetch(`/api/products/${productId}`, { method: 'DELETE' }).catch((err) =>
+      console.warn('Direct backend delete notice:', err)
+    );
+
+    // 5. Notify parent App component with deleted product ID
+    onSaveProducts(updated, productId);
+
     setProductToDelete(null);
     if (selectedProductToEdit?.id === productId) {
       setSelectedProductToEdit(null);
@@ -257,26 +273,21 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     setNewImageUploadMsg(null);
 
     try {
-      const result = await uploadImageToCloud(file, 'new-product');
+      const result = await uploadImageToCloud(
+        file,
+        'new-product',
+        newProduct.title,
+        newProduct.mainCategory
+      );
       if (result.success && result.directUrl) {
         setNewProduct((prev) => ({ ...prev, image: result.directUrl }));
         setNewImageUploadMsg(result.message);
-        setTimeout(() => setNewImageUploadMsg(null), 5000);
+        setTimeout(() => setNewImageUploadMsg(null), 6000);
       } else {
         throw new Error(result.message || 'Error al procesar la imagen');
       }
     } catch (err: any) {
       console.error('Error al subir imagen de nuevo producto:', err);
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        const resStr = event.target ? (event.target.result as string) : '';
-        if (resStr) {
-          setNewProduct((prev) => ({ ...prev, image: resStr }));
-          setNewImageUploadMsg('¡Foto colocada en el Punto 2!');
-          setTimeout(() => setNewImageUploadMsg(null), 4000);
-        }
-      };
-      reader.readAsDataURL(file);
     } finally {
       setIsUploadingNewImage(false);
       if (e.target) {
@@ -474,7 +485,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       rating: 5.0,
       reviewsCount: 1,
       salesCount: 1,
-      inStock: true,
+      inStock: newProduct.inStock !== false,
       featured: true,
     };
 
@@ -1563,23 +1574,44 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                               onChange={handleNewProductFileUpload}
                               className="hidden"
                             />
-                            <button
-                              type="button"
-                              onClick={() => newProductFileInputRef.current?.click()}
-                              disabled={isUploadingNewImage}
-                              className="w-full py-2 px-3 rounded-xl border border-dashed border-[#1BA7D9] bg-sky-50 dark:bg-sky-950/30 hover:bg-sky-100/60 text-xs font-bold text-slate-700 dark:text-slate-200 flex items-center justify-center gap-2 cursor-pointer transition-colors disabled:opacity-50"
-                            >
-                              <Upload className="w-3.5 h-3.5 text-[#1BA7D9]" />
-                              <span>
-                                {isUploadingNewImage
-                                  ? 'Alojando y sincronizando foto en la nube...'
-                                  : 'Subir Foto desde tu Móvil o Computadora'}
-                              </span>
-                            </button>
+                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                              <button
+                                type="button"
+                                onClick={() => newProductFileInputRef.current?.click()}
+                                disabled={isUploadingNewImage}
+                                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#ff8555] hover:from-[#e85a26] hover:to-[#FF6B35] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
+                                title="Cargar foto desde tu móvil o PC y generar enlace directo de Postimages (https://i.postimg.cc/...)"
+                              >
+                                {isUploadingNewImage ? (
+                                  <Loader2 className="w-4 h-4 text-white animate-spin" />
+                                ) : (
+                                  <Upload className="w-4 h-4 text-white" />
+                                )}
+                                <span>
+                                  {isUploadingNewImage
+                                    ? 'Vinculando con Postimages...'
+                                    : 'Subir Foto desde Móvil o PC'}
+                                </span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => setShowGalleryPickerForNew(true)}
+                                className="w-full py-2.5 px-3 rounded-xl bg-[#0B2545] hover:bg-[#144272] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
+                                title="Elegir foto directamente de la galería oficial (https://postimg.cc/gallery/zJjp92t)"
+                              >
+                                <Sparkles className="w-4 h-4 text-[#1BA7D9]" />
+                                <span>Elegir de tu Galería (zJjp92t)</span>
+                              </button>
+                            </div>
+
+                            <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                              <span>Galería oficial: <strong className="text-[#1BA7D9]">postimg.cc/gallery/zJjp92t</strong></span>
+                            </div>
 
                             {newImageUploadMsg && (
-                              <div className="mt-1 p-1.5 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[10px] font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 animate-in fade-in">
-                                <Check className="w-3 h-3 text-emerald-500 shrink-0" />
+                              <div className="mt-1.5 p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 animate-in fade-in">
+                                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
                                 <span>{newImageUploadMsg}</span>
                               </div>
                             )}
@@ -1599,6 +1631,29 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           </div>
                         </div>
                       </div>
+                    </div>
+
+                    {/* Stock checkbox for new product */}
+                    <div className="sm:col-span-4 flex items-center gap-2 p-2.5 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                      <input
+                        type="checkbox"
+                        id="new-product-instock"
+                        checked={newProduct.inStock !== false}
+                        onChange={(e) => setNewProduct({ ...newProduct, inStock: e.target.checked })}
+                        className="w-4 h-4 rounded text-[#1BA7D9] focus:ring-[#1BA7D9] cursor-pointer"
+                      />
+                      <label htmlFor="new-product-instock" className="text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-1.5 flex-wrap">
+                        <span>Estado de Stock:</span>
+                        {newProduct.inStock !== false ? (
+                          <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                            ✓ En Stock (Disponible)
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 rounded-full border border-rose-200 dark:border-rose-800 animate-pulse">
+                            ✕ Agotado (Sin Stock)
+                          </span>
+                        )}
+                      </label>
                     </div>
 
                     <div className="sm:col-span-4 flex justify-end gap-2 pt-1">
@@ -1753,12 +1808,25 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             </h4>
 
                             <div className="flex items-center justify-between text-xs pt-0.5">
-                              <span className="text-xs font-black text-[#FF6B35]">
-                                C$ {product.price.toLocaleString('es-NI')}
-                              </span>
-                              {product.originalPrice && product.originalPrice > product.price && (
-                                <span className="text-[10px] text-slate-400 line-through">
-                                  C$ {product.originalPrice.toLocaleString('es-NI')}
+                              <div className="flex items-baseline gap-1.5">
+                                <span className="text-xs font-black text-[#FF6B35]">
+                                  C$ {product.price.toLocaleString('es-NI')}
+                                </span>
+                                {product.originalPrice && product.originalPrice > product.price && (
+                                  <span className="text-[10px] text-slate-400 line-through">
+                                    C$ {product.originalPrice.toLocaleString('es-NI')}
+                                  </span>
+                                )}
+                              </div>
+
+                              {/* Stock status badge */}
+                              {product.inStock === false ? (
+                                <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 rounded-full border border-rose-200 dark:border-rose-900/60">
+                                  ✕ Agotado
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-900/60">
+                                  ✓ En Stock
                                 </span>
                               )}
                             </div>
@@ -1766,7 +1834,27 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         </div>
 
                         {/* Action Buttons in Admin Panel */}
-                        <div className="flex items-center gap-2 pt-1">
+                        <div className="flex items-center gap-1.5 pt-1">
+                          {/* Quick 1-tap Stock Toggle */}
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const updatedProduct = {
+                                ...product,
+                                inStock: product.inStock === false,
+                              };
+                              handleSaveEditedProduct(updatedProduct);
+                            }}
+                            className={`px-2 py-2 rounded-xl text-[10px] font-black flex items-center justify-center gap-1 transition-all cursor-pointer border ${
+                              product.inStock !== false
+                                ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800 hover:bg-emerald-100'
+                                : 'bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border-rose-200 dark:border-rose-800 hover:bg-rose-100 animate-pulse'
+                            }`}
+                            title={product.inStock !== false ? 'Marcar como Agotado (clic para alternar)' : 'Marcar como En Stock (clic para alternar)'}
+                          >
+                            <span>{product.inStock !== false ? 'En Stock' : 'Agotado'}</span>
+                          </button>
+
                           <button
                             type="button"
                             onClick={() => {
@@ -1864,6 +1952,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           onSaveProduct={handleSaveEditedProduct}
           onDeleteProduct={handleDeleteProduct}
           isAdminUnlocked={true}
+        />
+
+        {/* Official Gallery Picker Modal for New Product */}
+        <OfficialGalleryPickerModal
+          isOpen={showGalleryPickerForNew}
+          onClose={() => setShowGalleryPickerForNew(false)}
+          onSelectImage={(selectedUrl) => {
+            setNewProduct((prev) => ({ ...prev, image: selectedUrl }));
+            setNewImageUploadMsg('¡Foto de Postimages seleccionada y colocada en el Punto 2!');
+            setTimeout(() => setNewImageUploadMsg(null), 5000);
+          }}
+          currentImage={newProduct.image}
         />
       </div>
     </div>

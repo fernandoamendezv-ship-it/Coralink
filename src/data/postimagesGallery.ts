@@ -1,8 +1,3 @@
-/**
- * Official Postimages gallery photos for Coralink (Gallery ID: zJjp92t)
- * https://postimg.cc/gallery/zJjp92t
- */
-
 export interface PostimagesItem {
   id: string;
   title: string;
@@ -15,7 +10,7 @@ export interface PostimagesItem {
 export const POSTIMAGES_GALLERY_ID = 'zJjp92t';
 export const POSTIMAGES_GALLERY_URL = 'https://postimg.cc/gallery/zJjp92t';
 
-// Full catalog of photos directly hosted on the user's Postimages gallery
+// Catalog of photos directly hosted on the user's Postimages gallery
 export const POSTIMAGES_GALLERY_ITEMS: PostimagesItem[] = [
   // Llaveros
   {
@@ -410,8 +405,9 @@ export const POSTIMAGES_GALLERY_ITEMS: PostimagesItem[] = [
   },
 ];
 
-export const OFFICIAL_GALLERY_IMAGES: string[] = POSTIMAGES_GALLERY_ITEMS.map((item) => item.url);
-
+/**
+ * Normalizes text for resilient matching (lowercase, no accents, no symbols)
+ */
 function normalizeString(str: string): string {
   return (str || '')
     .toLowerCase()
@@ -421,6 +417,10 @@ function normalizeString(str: string): string {
     .trim();
 }
 
+/**
+ * Smart matching algorithm that connects an uploaded file, product title or category
+ * directly to the exact image URL from the user's Postimages gallery (https://postimg.cc/gallery/zJjp92t).
+ */
 export function findBestPostimagesMatch(query: {
   filename?: string;
   title?: string;
@@ -463,18 +463,25 @@ export function findBestPostimagesMatch(query: {
     let score = 0;
     const normItemTitle = normalizeString(item.title);
 
+    // Exact or substring name match in filename
     if (normFile.includes(normItemTitle) || normItemTitle.includes(normFile)) {
       score += 50;
     }
+
+    // Exact or substring match in product title
     if (normTitle && (normTitle.includes(normItemTitle) || normItemTitle.includes(normTitle))) {
       score += 40;
     }
+
+    // Keyword matches
     for (const kw of item.keywords) {
       const normKw = normalizeString(kw);
       if (normFile.includes(normKw)) score += 15;
       if (normTitle.includes(normKw)) score += 15;
       if (normCat.includes(normKw)) score += 5;
     }
+
+    // Category match bonus
     if (normCat && normalizeString(item.category) === normCat) {
       score += 10;
     }
@@ -485,22 +492,11 @@ export function findBestPostimagesMatch(query: {
     }
   }
 
+  // Fallback: If no good match, default to Llavero faja de cuerina as requested exemplar
   if (highestScore <= 0) {
     const exemplar = POSTIMAGES_GALLERY_ITEMS.find((i) => i.id === 'llavero-faja-de-cuerina');
     return exemplar || POSTIMAGES_GALLERY_ITEMS[0];
   }
 
   return bestItem;
-}
-
-export function extractImageName(url: string): string {
-  try {
-    const match = POSTIMAGES_GALLERY_ITEMS.find((i) => i.url === url);
-    if (match) return match.title;
-    const parts = url.split('/');
-    const last = parts[parts.length - 1];
-    return decodeURIComponent(last.replace(/\.[^/.]+$/, '').replace(/[-_]/g, ' '));
-  } catch (_) {
-    return 'Foto de producto';
-  }
 }

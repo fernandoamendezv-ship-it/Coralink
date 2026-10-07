@@ -48,7 +48,9 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             src={formatDirectImageUrl(product.image)}
             alt={product.title}
             loading="lazy"
-            className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500"
+            className={`w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ${
+              product.inStock === false ? 'grayscale-[35%] opacity-85' : ''
+            }`}
             onError={(e) => {
               (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
             }}
@@ -70,10 +72,24 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
-        {/* Badge (Top Left) */}
-        {product.badge && (
+        {/* Stock Badge or Promo Badge (Top Left) */}
+        {product.inStock === false ? (
+          <div className="absolute top-2 left-2 z-10 px-2 py-0.5 rounded-md bg-rose-600 text-white text-[10px] font-black uppercase tracking-wider shadow-md flex items-center gap-1">
+            <span className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+            Agotado
+          </div>
+        ) : product.badge ? (
           <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-[#FF6B35] text-white text-[10px] font-black uppercase tracking-wider shadow-sm">
             {product.badge}
+          </div>
+        ) : null}
+
+        {/* Bottom banner on image if Agotado */}
+        {product.inStock === false && (
+          <div className="absolute inset-x-0 bottom-0 py-1 bg-black/75 backdrop-blur-xs text-center z-5">
+            <span className="text-[10px] font-black tracking-widest text-rose-300 uppercase">
+              Agotado
+            </span>
           </div>
         )}
 
@@ -138,41 +154,74 @@ export const ProductCard: React.FC<ProductCardProps> = ({
         </div>
 
         {/* Price Row in Nicaraguan Cordobas (C$) */}
-        <div className="mt-2 flex items-baseline gap-1.5 flex-wrap">
-          <div className="flex items-baseline text-[#FF6B35]">
-            <span className="text-xs font-black mr-0.5">C$</span>
-            <span className="text-base sm:text-lg font-black tracking-tight">
-              {(typeof product.price === 'number' ? product.price : 0).toLocaleString('es-NI')}
-            </span>
+        <div className="mt-2 flex items-center justify-between gap-1.5 flex-wrap">
+          <div className="flex items-baseline gap-1.5 flex-wrap">
+            <div className="flex items-baseline text-[#FF6B35]">
+              <span className="text-xs font-black mr-0.5">C$</span>
+              <span className="text-base sm:text-lg font-black tracking-tight">
+                {(typeof product.price === 'number' ? product.price : 0).toLocaleString('es-NI')}
+              </span>
+            </div>
+
+            {typeof product.originalPrice === 'number' && typeof product.price === 'number' && product.originalPrice > product.price && (
+              <span className="text-[11px] text-slate-400 dark:text-slate-500 line-through">
+                C${product.originalPrice.toLocaleString('es-NI')}
+              </span>
+            )}
           </div>
 
-          {typeof product.originalPrice === 'number' && typeof product.price === 'number' && product.originalPrice > product.price && (
-            <span className="text-[11px] text-slate-400 dark:text-slate-500 line-through">
-              C${product.originalPrice.toLocaleString('es-NI')}
+          {product.inStock === false && (
+            <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 px-1.5 py-0.5 rounded-md border border-rose-200 dark:border-rose-900/60 uppercase tracking-tight">
+              Agotado
             </span>
           )}
         </div>
 
         {/* Actions Button Row */}
         <div className="mt-auto pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center gap-1.5">
-          {/* Quick WhatsApp Quote */}
-          <button
-            onClick={() => onDirectWhatsApp(product)}
-            className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
-            title="Cotizar por WhatsApp"
-          >
-            <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
-            <span>Cotizar</span>
-          </button>
+          {product.inStock === false ? (
+            <>
+              {/* WhatsApp Inquiry for Out-of-Stock */}
+              <button
+                onClick={() => onDirectWhatsApp(product)}
+                className="flex-1 py-1.5 px-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-emerald-50 dark:hover:bg-emerald-950/40 text-slate-700 dark:text-slate-300 hover:text-emerald-700 dark:hover:text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                title="Consultar disponibilidad por WhatsApp"
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Consultar</span>
+              </button>
 
-          {/* Add to Quote Basket */}
-          <button
-            onClick={() => onAddToCart(product)}
-            className="p-1.5 rounded-xl bg-[#0B2545] dark:bg-slate-700 hover:bg-[#144272] dark:hover:bg-slate-600 text-white transition-colors cursor-pointer"
-            title="Añadir a mi lista de cotización"
-          >
-            <Plus className="w-4 h-4" />
-          </button>
+              {/* Disabled Basket Button */}
+              <button
+                disabled
+                className="p-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-300 dark:text-slate-600 cursor-not-allowed opacity-60"
+                title="Producto agotado actualmente"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </>
+          ) : (
+            <>
+              {/* Quick WhatsApp Quote */}
+              <button
+                onClick={() => onDirectWhatsApp(product)}
+                className="flex-1 py-1.5 px-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/50 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+                title="Cotizar por WhatsApp"
+              >
+                <MessageCircle className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                <span>Cotizar</span>
+              </button>
+
+              {/* Add to Quote Basket */}
+              <button
+                onClick={() => onAddToCart(product)}
+                className="p-1.5 rounded-xl bg-[#0B2545] dark:bg-slate-700 hover:bg-[#144272] dark:hover:bg-slate-600 text-white transition-colors cursor-pointer"
+                title="Añadir a mi lista de cotización"
+              >
+                <Plus className="w-4 h-4" />
+              </button>
+            </>
+          )}
         </div>
       </div>
     </motion.div>

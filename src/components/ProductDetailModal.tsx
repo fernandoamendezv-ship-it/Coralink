@@ -113,7 +113,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <img
               src={formatDirectImageUrl(product.image)}
               alt={product.title}
-              className="w-full h-full max-h-[380px] md:max-h-full object-cover rounded-2xl shadow-inner"
+              className={`w-full h-full max-h-[380px] md:max-h-full object-cover rounded-2xl shadow-inner ${
+                product.inStock === false ? 'grayscale-[30%] opacity-85' : ''
+              }`}
               onError={(e) => {
                 (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
               }}
@@ -134,9 +136,24 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
               <p className="text-xs text-[#1BA7D9] font-black uppercase tracking-wider mt-1">Coralink Corn Island</p>
             </div>
           )}
-          {product.badge && (
+
+          {/* Badge: Agotado or Promo */}
+          {product.inStock === false ? (
+            <div className="absolute top-4 left-4 px-3 py-1 rounded-lg bg-rose-600 text-white text-xs font-black uppercase tracking-wider shadow-md flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full bg-white animate-pulse" />
+              <span>Agotado</span>
+            </div>
+          ) : product.badge ? (
             <div className="absolute top-4 left-4 px-3 py-1 rounded-lg bg-[#FF6B35] text-white text-xs font-black uppercase tracking-wider shadow-md">
               {product.badge}
+            </div>
+          ) : null}
+
+          {product.inStock === false && (
+            <div className="absolute inset-x-4 bottom-4 py-1.5 bg-black/80 backdrop-blur-xs text-center rounded-xl border border-rose-500/40">
+              <span className="text-xs font-black tracking-widest text-rose-300 uppercase">
+                Producto Actualmente Agotado
+              </span>
             </div>
           )}
         </div>
@@ -147,6 +164,21 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <h2 className="text-lg sm:text-xl font-extrabold text-[#0B2545] dark:text-white leading-snug">
             {product.title}
           </h2>
+
+          {/* Stock Indicator Status */}
+          <div className="mt-2">
+            {product.inStock === false ? (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-900/60 text-rose-700 dark:text-rose-300 text-xs font-black">
+                <span className="w-2 h-2 rounded-full bg-rose-500" />
+                <span>Agotado • Sin stock disponible</span>
+              </span>
+            ) : (
+              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900/60 text-emerald-700 dark:text-emerald-300 text-xs font-bold">
+                <span className="w-2 h-2 rounded-full bg-emerald-500" />
+                <span>En Stock • Disponible</span>
+              </span>
+            )}
+          </div>
 
           {/* Clickable Tab switcher: Producto / Calificaciones */}
           <div className="flex items-center gap-2 mt-2 pb-2 border-b border-slate-100 dark:border-slate-800">
@@ -304,26 +336,40 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   className="w-full py-2.5 px-4 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs sm:text-sm font-bold flex items-center justify-center gap-2 shadow-md shadow-emerald-600/20 transition-all cursor-pointer"
                 >
                   <MessageCircle className="w-4 h-4" />
-                  <span>Cotizar por WhatsApp</span>
+                  <span>
+                    {product.inStock === false
+                      ? 'Consultar Disponibilidad por WhatsApp'
+                      : 'Cotizar por WhatsApp'}
+                  </span>
                 </button>
 
-                <button
-                  onClick={handleAdd}
-                  disabled={addedToast}
-                  className="w-full py-2.5 px-4 rounded-xl bg-[#0B2545] dark:bg-slate-700 hover:bg-[#144272] dark:hover:bg-slate-600 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
-                >
-                  {addedToast ? (
-                    <>
-                      <Check className="w-4 h-4 text-emerald-400" />
-                      <span>¡Añadido al Pedido!</span>
-                    </>
-                  ) : (
-                    <>
-                      <ShoppingBag className="w-4 h-4 text-[#1BA7D9]" />
-                      <span>Añadir a mi Cotización</span>
-                    </>
-                  )}
-                </button>
+                {product.inStock === false ? (
+                  <button
+                    disabled
+                    className="w-full py-2.5 px-4 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-400 dark:text-slate-500 text-xs sm:text-sm font-bold flex items-center justify-center gap-2 cursor-not-allowed opacity-75"
+                  >
+                    <ShoppingBag className="w-4 h-4" />
+                    <span>Producto Agotado</span>
+                  </button>
+                ) : (
+                  <button
+                    onClick={handleAdd}
+                    disabled={addedToast}
+                    className="w-full py-2.5 px-4 rounded-xl bg-[#0B2545] dark:bg-slate-700 hover:bg-[#144272] dark:hover:bg-slate-600 text-white text-xs font-bold flex items-center justify-center gap-2 transition-colors cursor-pointer"
+                  >
+                    {addedToast ? (
+                      <>
+                        <Check className="w-4 h-4 text-emerald-400" />
+                        <span>¡Añadido al Pedido!</span>
+                      </>
+                    ) : (
+                      <>
+                        <ShoppingBag className="w-4 h-4 text-[#1BA7D9]" />
+                        <span>Añadir a mi Cotización</span>
+                      </>
+                    )}
+                  </button>
+                )}
               </div>
             </>
           ) : (

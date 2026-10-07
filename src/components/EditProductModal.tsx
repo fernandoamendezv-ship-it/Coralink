@@ -32,6 +32,7 @@ import {
   isViewerPageUrl,
 } from '../utils/imageUrlResolver';
 import { uploadImageToCloud, openPostimagesUploader } from '../utils/cloudImageUploader';
+import { POSTIMAGES_GALLERY_URL } from '../utils/postimagesGallery';
 import { OfficialGalleryPickerModal } from './OfficialGalleryPickerModal';
 
 interface EditProductModalProps {
@@ -248,7 +249,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     }
   };
 
-  // Handle file upload: uploads to cloud and automatically injects direct URL into Punto 2
+  // Handle file upload: uploads to cloud and automatically injects direct Postimages URL into Punto 2
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -258,30 +259,18 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
     setLocalPathError(false);
 
     try {
-      const result = await uploadImageToCloud(file, product?.id);
+      const result = await uploadImageToCloud(file, product?.id, title, mainCategory);
       if (result.success && result.directUrl) {
         // Automatically inject the direct cloud link into Punto 2 (URL input)
         setImage(result.directUrl);
         setLinkStatus('valid');
         setUploadSuccessMsg(result.message);
-        setTimeout(() => setUploadSuccessMsg(null), 5000);
+        setTimeout(() => setUploadSuccessMsg(null), 6000);
       } else {
         throw new Error(result.message || 'Error al procesar la imagen');
       }
     } catch (err: any) {
       console.error('Error al procesar la imagen:', err);
-      // Fallback
-      const reader = new FileReader();
-      reader.onload = (event) => {
-        if (event.target?.result) {
-          const b64 = event.target.result as string;
-          setImage(b64);
-          setLinkStatus('valid');
-          setUploadSuccessMsg('¡Foto optimizada y colocada en el Punto 2!');
-          setTimeout(() => setUploadSuccessMsg(null), 4000);
-        }
-      };
-      reader.readAsDataURL(file);
     } finally {
       setIsUploadingImage(false);
       if (e.target) {
@@ -643,62 +632,50 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <button
                           type="button"
-                          onClick={() => {
-                            openPostimagesUploader((directUrl) => {
-                              setImage(directUrl);
-                              setLinkStatus('valid');
-                              setUploadSuccessMsg('¡Foto subida a Postimages y enlace directo colocado en el Punto 2!');
-                              setTimeout(() => setUploadSuccessMsg(null), 5000);
-                            });
-                          }}
-                          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#ff8555] hover:from-[#e85a26] hover:to-[#FF6B35] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
-                          title="Subir foto directamente a Postimages para generar enlace https://i.postimg.cc/..."
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploadingImage}
+                          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#ff8555] hover:from-[#e85a26] hover:to-[#FF6B35] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
+                          title="Cargar foto desde tu celular o PC y generar automáticamente el enlace directo de Postimages (https://i.postimg.cc/...)"
                         >
-                          <Upload className="w-4 h-4 text-white" />
-                          <span>Subir a Postimages (i.postimg.cc)</span>
+                          {isUploadingImage ? (
+                            <Loader2 className="w-4 h-4 text-white animate-spin" />
+                          ) : (
+                            <Upload className="w-4 h-4 text-white" />
+                          )}
+                          <span>
+                            {isUploadingImage
+                              ? 'Vinculando con Postimages...'
+                              : 'Subir Foto desde Móvil o PC'}
+                          </span>
                         </button>
 
                         <button
                           type="button"
                           onClick={() => setShowGalleryPicker(true)}
                           className="w-full py-2.5 px-3 rounded-xl bg-[#0B2545] hover:bg-[#144272] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
-                          title="Elegir foto ya existente de la galería oficial (postimg.cc/gallery/zJjp92t)"
+                          title="Elegir foto directamente de tu galería oficial (https://postimg.cc/gallery/zJjp92t)"
                         >
                           <Sparkles className="w-4 h-4 text-[#1BA7D9]" />
-                          <span>Ver Galería Oficial (70 fotos)</span>
+                          <span>Elegir de tu Galería (zJjp92t)</span>
                         </button>
                       </div>
 
-                      <div className="pt-1.5">
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          accept="image/*"
-                          onChange={handleFileUpload}
-                          className="hidden"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploadingImage}
-                          className="w-full py-2 px-3 rounded-xl border border-dashed border-slate-300 dark:border-slate-700 hover:border-[#1BA7D9] bg-slate-50 dark:bg-slate-800/50 hover:bg-sky-50/50 text-[11px] font-bold text-slate-600 dark:text-slate-300 flex items-center justify-center gap-1.5 transition-colors cursor-pointer disabled:opacity-50"
+                      <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
+                        <span>Galería oficial vinculada: <strong className="text-[#1BA7D9]">postimg.cc/gallery/zJjp92t</strong></span>
+                        <a
+                          href={POSTIMAGES_GALLERY_URL}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-[#FF6B35] hover:underline flex items-center gap-0.5 font-bold"
                         >
-                          {isUploadingImage ? (
-                            <Loader2 className="w-3.5 h-3.5 text-[#1BA7D9] animate-spin" />
-                          ) : (
-                            <Upload className="w-3.5 h-3.5 text-slate-400" />
-                          )}
-                          <span>
-                            {isUploadingImage
-                              ? 'Alojando y sincronizando foto en la nube...'
-                              : 'O subir archivo directo desde tu móvil o PC'}
-                          </span>
-                        </button>
+                          <span>Ver galería</span>
+                          <ExternalLink className="w-2.5 h-2.5" />
+                        </a>
                       </div>
 
                       {uploadSuccessMsg && (
-                        <div className="mt-1.5 p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 animate-in fade-in">
-                          <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
+                        <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 animate-in fade-in">
+                          <Check className="w-4 h-4 text-emerald-500 shrink-0" />
                           <span>{uploadSuccessMsg}</span>
                         </div>
                       )}
@@ -850,7 +827,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
               {/* Field 6: Stock, Oferta Flash & Badge */}
               <div className="bg-white dark:bg-slate-900 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-800 shadow-2xs space-y-3">
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 items-center">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
                     <input
                       type="checkbox"
                       id="edit-instock"
@@ -858,8 +835,17 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                       onChange={(e) => setInStock(e.target.checked)}
                       className="w-4 h-4 rounded text-[#1BA7D9] focus:ring-[#1BA7D9] cursor-pointer"
                     />
-                    <label htmlFor="edit-instock" className="text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer">
-                      En Stock (Disponible)
+                    <label htmlFor="edit-instock" className="text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-1.5 flex-wrap">
+                      <span>En Stock:</span>
+                      {inStock ? (
+                        <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
+                          ✓ Disponible
+                        </span>
+                      ) : (
+                        <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 rounded-full border border-rose-200 dark:border-rose-800 animate-pulse">
+                          ✕ Agotado
+                        </span>
+                      )}
                     </label>
                   </div>
 

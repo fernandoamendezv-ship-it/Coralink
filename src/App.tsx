@@ -22,7 +22,13 @@ import { Footer } from './components/Footer';
 import { Search, Zap, Sparkles, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useThemeMode } from './hooks/useThemeMode';
 import { CORALINK_LOGO_URL, isReferenceLogo } from './utils/logoConstants';
-import { scanAndRecoverCustomProducts, mergePreservingCustomizations } from './utils/productMerger';
+import {
+  scanAndRecoverCustomProducts,
+  mergePreservingCustomizations,
+  markProductAsDeleted,
+  getDeletedProductIds,
+  filterOutDeletedProducts,
+} from './utils/productMerger';
 import {
   fetchProductsFromFirestore,
   syncAllProductsToFirestore,
@@ -97,23 +103,24 @@ export default function App() {
   // PWA Install & Update hook
   const { isInstallable, isInstalled, isIOS, install, swStatus, checkSW, hasUpdate, isUpdating, updateApp } = usePWAInstall();
 
-  // Products State with Intelligent Customization Preservation and Auto-Recovery
+  // Products State with Intelligent Customization Preservation, Auto-Recovery and Deletion Respect
   const [products, setProducts] = useState<Product[]>(() => {
     if (typeof window !== 'undefined') {
       try {
         const { recoveredProducts } = scanAndRecoverCustomProducts(INITIAL_PRODUCTS);
+        const cleanProducts = filterOutDeletedProducts(recoveredProducts);
 
         // Always save a safe backup
-        localStorage.setItem('coralink_custom_products', JSON.stringify(recoveredProducts));
-        localStorage.setItem('coralink_custom_products_backup', JSON.stringify(recoveredProducts));
+        localStorage.setItem('coralink_custom_products', JSON.stringify(cleanProducts));
+        localStorage.setItem('coralink_custom_products_backup', JSON.stringify(cleanProducts));
         localStorage.setItem('coralink_catalog_version', CATALOG_VERSION);
 
-        return recoveredProducts;
+        return cleanProducts;
       } catch (err) {
         console.error('Failed to parse or recover products:', err);
       }
     }
-    return INITIAL_PRODUCTS;
+    return filterOutDeletedProducts(INITIAL_PRODUCTS);
   });
 
   // Favorites State with LocalStorage Persistence
@@ -216,14 +223,17 @@ export default function App() {
     setIsManualSyncing(true);
     setSyncToastMsg('Sincronizando catálogo con la nube...');
 
+    const deletedIds = getDeletedProductIds();
+
     try {
-      // 1. Try manual fetch from Firestore first
-      const firestoreProducts = await fetchProductsFromFirestore();
+      // 1. Try manual fetch from Firestore first (passing deleted IDs to purge phantom docs)
+      const firestoreProducts = await fetchProductsFromFirestore(deletedIds);
       if (firestoreProducts && firestoreProducts.length > 0) {
-        setProducts(firestoreProducts);
+        const clean = filterOutDeletedProducts(firestoreProducts);
+        setProducts(clean);
         try {
-          localStorage.setItem('coralink_custom_products', JSON.stringify(firestoreProducts));
-          localStorage.setItem('coralink_custom_products_backup', JSON.stringify(firestoreProducts));
+          localStorage.setItem('coralink_custom_products', JSON.stringify(clean));
+          localStorage.setItem('coralink_custom_products_backup', JSON.stringify(clean));
         } catch (e) {
           console.error(e);
         }
@@ -236,10 +246,11 @@ export default function App() {
       const res = await fetch(`/api/products?t=${Date.now()}`, { cache: 'no-store' });
       const data = await res.json();
       if (data.success && Array.isArray(data.products) && data.products.length > 0) {
-        setProducts(data.products);
-        localStorage.setItem('coralink_custom_products', JSON.stringify(data.products));
-        localStorage.setItem('coralink_custom_products_backup', JSON.stringify(data.products));
-        syncAllProductsToFirestore(data.products).catch(() => {});
+        const clean = filterOutDeletedProducts(data.products);
+        setProducts(clean);
+        localStorage.setItem('coralink_custom_products', JSON.stringify(clean));
+        localStorage.setItem('coralink_custom_products_backup', JSON.stringify(clean));
+        syncAllProductsToFirestore(clean).catch(() => {});
         setSyncToastMsg('¡Catálogo sincronizado exitosamente!');
       } else {
         setSyncToastMsg('¡Catálogo al día!');
@@ -278,18 +289,24 @@ export default function App() {
     );
   };
 
-  // Handle Admin Saving Products
-  const handleSaveProducts = (updated: Product[]) => {
-    setProducts(updated);
+  // Handle Admin Saving Products (including deletion)
+  const handleSaveProducts = (updated: Product[], deletedProductId?: string) => {
+    if (deletedProductId) {
+      markProductAsDeleted(deletedProductId);
+    }
+
+    const cleanUpdated = filterOutDeletedProducts(updated);
+    setProducts(cleanUpdated);
+
     try {
-      localStorage.setItem('coralink_custom_products', JSON.stringify(updated));
-      localStorage.setItem('coralink_custom_products_backup', JSON.stringify(updated));
+      localStorage.setItem('coralink_custom_products', JSON.stringify(cleanUpdated));
+      localStorage.setItem('coralink_custom_products_backup', JSON.stringify(cleanUpdated));
     } catch (e) {
       console.error(e);
     }
 
-    // 1. Instantly push to Firebase Firestore in the cloud
-    syncAllProductsToFirestore(updated).catch((err) =>
+    // 1. Instantly push to Firebase Firestore in the cloud and purge deleted IDs
+    syncAllProductsToFirestore(cleanUpdated, deletedProductId).catch((err) =>
       console.warn('Firestore sync background notice:', err)
     );
 
@@ -297,13 +314,14 @@ export default function App() {
     fetch('/api/products', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ products: updated }),
+      body: JSON.stringify({ products: cleanUpdated }),
     })
       .then((res) => res.json())
       .then((data) => {
         if (data.success && Array.isArray(data.products)) {
-          setProducts(data.products);
-          localStorage.setItem('coralink_custom_products', JSON.stringify(data.products));
+          const cleanBackend = filterOutDeletedProducts(data.products);
+          setProducts(cleanBackend);
+          localStorage.setItem('coralink_custom_products', JSON.stringify(cleanBackend));
         }
       })
       .catch((e) => console.log('Backend sync skipped:', e));
@@ -339,6 +357,12 @@ export default function App() {
     selectedOptions: Record<string, string> = {},
     customNote = ''
   ) => {
+    if (product.inStock === false) {
+      setSyncToastMsg(`⚠️ El producto «${product.title}» está agotado actualmente.`);
+      setTimeout(() => setSyncToastMsg(null), 3500);
+      return;
+    }
+
     setCart((prev) => {
       const existingIdx = prev.findIndex(
         (item) =>
@@ -384,16 +408,26 @@ export default function App() {
     selectedOptions: Record<string, string> = {},
     customNote = ''
   ) => {
+    const isOutOfStock = product.inStock === false;
     const totalItemPrice = product.price * quantity;
     const anticipo50 = totalItemPrice * 0.5;
 
     let msg = `🌊 *¡Hola Coralink! (Arte & Personalización Caribeña)*\n\n`;
-    msg += `Me interesa cotizar el siguiente producto de su catálogo:\n\n`;
+    if (isOutOfStock) {
+      msg += `Me interesa consultar disponibilidad del siguiente producto que figura como *AGOTADO* en su catálogo:\n\n`;
+    } else {
+      msg += `Me interesa cotizar el siguiente producto de su catálogo:\n\n`;
+    }
     msg += `📌 *Producto:* ${product.title}\n`;
-    msg += `📦 *Cantidad:* ${quantity}\n`;
-    msg += `💰 *Precio Total:* C$ ${totalItemPrice.toLocaleString('es-NI')}\n`;
-    msg += `💵 *Anticipo requerido (50%):* C$ ${anticipo50.toLocaleString('es-NI')}\n`;
-    msg += `⏱️ *Tiempo de entrega:* Mínimo 3 días hábiles\n`;
+    if (isOutOfStock) {
+      msg += `⚠️ *Estado:* Agotado en catálogo\n`;
+    }
+    msg += `📦 *Cantidad de interés:* ${quantity}\n`;
+    msg += `💰 *Precio Unitario:* C$ ${product.price.toLocaleString('es-NI')}\n`;
+    if (!isOutOfStock) {
+      msg += `💵 *Anticipo requerido (50%):* C$ ${anticipo50.toLocaleString('es-NI')}\n`;
+      msg += `⏱️ *Tiempo de entrega:* Mínimo 3 días hábiles\n`;
+    }
 
     if (Object.keys(selectedOptions).length > 0) {
       const opts = Object.entries(selectedOptions)
@@ -406,7 +440,11 @@ export default function App() {
       msg += `📝 *Detalle personal:* "${customNote}"\n`;
     }
 
-    msg += `\n📋 *Política de Compra:* Entiendo que se requiere dar el 50% de anticipo para iniciar la elaboración y que el tiempo de entrega es mínimo 3 días hábiles. ¿Tienen disponibilidad? ¡Muchas gracias!`;
+    if (isOutOfStock) {
+      msg += `\n¿Tienen previsto reponer stock próximamente o tienen alguna alternativa similar disponible? ¡Muchas gracias!`;
+    } else {
+      msg += `\n📋 *Política de Compra:* Entiendo que se requiere dar el 50% de anticipo para iniciar la elaboración y que el tiempo de entrega es mínimo 3 días hábiles. ¿Tienen disponibilidad? ¡Muchas gracias!`;
+    }
 
     const encoded = encodeURIComponent(msg);
     window.open(`https://wa.me/50582045433?text=${encoded}`, '_blank');

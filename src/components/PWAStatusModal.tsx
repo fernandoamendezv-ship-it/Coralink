@@ -140,20 +140,20 @@ export const PWAStatusModal: React.FC<PWAStatusModalProps> = ({
 
           {/* Quick Actions */}
           <div className="pt-2 flex flex-col sm:flex-row gap-2.5">
-            {isInstallable && (
+            {!isInstalled && (
               <button
                 onClick={() => {
                   onInstall();
                   onClose();
                 }}
-                className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#FF6B35] hover:bg-[#e85a26] text-white font-bold text-sm shadow-lg shadow-[#FF6B35]/25 transition-all"
+                className="flex-1 inline-flex items-center justify-center gap-2 py-3 px-4 rounded-xl bg-[#FF6B35] hover:bg-[#e85a26] text-white font-bold text-sm shadow-lg shadow-[#FF6B35]/25 transition-all cursor-pointer"
               >
                 <Download className="w-4 h-4" />
                 Instalar App en este Dispositivo
               </button>
             )}
 
-            {isIOS && (
+            {isIOS && !isInstalled && (
               <div className="p-3 rounded-xl bg-[#0B2545]/5 border border-[#0B2545]/10 text-xs text-slate-700">
                 <strong>¿Estás en iPhone / iPad?</strong> Pulsa el botón de <em>Compartir</em> en Safari y selecciona <em>&quot;Añadir a la pantalla de inicio&quot;</em>.
               </div>

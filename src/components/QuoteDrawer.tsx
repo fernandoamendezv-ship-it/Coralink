@@ -163,9 +163,16 @@ export const QuoteDrawer: React.FC<QuoteDrawerProps> = ({
                   )}
 
                   <div className="flex-1 min-w-0 pr-6">
-                    <h4 className="text-xs font-bold text-[#0B2545] dark:text-white truncate">
-                      {item.product.title}
-                    </h4>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <h4 className="text-xs font-bold text-[#0B2545] dark:text-white truncate">
+                        {item.product.title}
+                      </h4>
+                      {item.product.inStock === false && (
+                        <span className="text-[9px] font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 px-1.5 py-0.5 rounded border border-rose-200 dark:border-rose-900/50 uppercase">
+                          Agotado
+                        </span>
+                      )}
+                    </div>
                     <p className="text-[11px] text-[#FF6B35] font-black mt-0.5">
                       C$ {(item.product.price * item.quantity).toLocaleString('es-NI')}
                     </p>

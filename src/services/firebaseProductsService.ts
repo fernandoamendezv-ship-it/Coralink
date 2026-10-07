@@ -11,8 +11,23 @@ import {
 import { db } from '../firebase';
 import { Product } from '../types';
 import { INITIAL_PRODUCTS } from '../data/initialProducts';
+import { findBestPostimagesMatch } from '../utils/postimagesGallery';
+import { getDeletedProductIds } from '../utils/productMerger';
 
 const PRODUCTS_COLLECTION = 'products';
+
+/**
+ * Sanitizes image URL so that local dev URLs (like localhost:3000) are never
+ * persisted or shown on mobile/other devices. They resolve directly to Postimages.
+ */
+function sanitizeProductImage(img?: string, title?: string, category?: string): string {
+  if (!img) return '';
+  if (img.includes('localhost') || img.includes('127.0.0.1')) {
+    const match = findBestPostimagesMatch({ title, category });
+    return match.url;
+  }
+  return img;
+}
 
 /**
  * Subscribes to real-time updates for all products in Firestore.
@@ -53,7 +68,7 @@ export function subscribeToFirebaseProducts(
               subCategory: data.subCategory || 'General',
               price: typeof data.price === 'number' ? data.price : 0,
               originalPrice: typeof data.originalPrice === 'number' ? data.originalPrice : undefined,
-              image: data.image || '',
+              image: sanitizeProductImage(data.image, data.title, data.mainCategory),
               description: data.description || '',
               inStock: data.inStock !== false,
               featured: Boolean(data.featured),
@@ -89,18 +104,33 @@ export function subscribeToFirebaseProducts(
 
 /**
  * One-time manual fetch of all products from Firestore (no persistent socket listener).
+ * Automatically purges and filters any products registered as deleted.
  */
-export async function fetchProductsFromFirestore(): Promise<Product[] | null> {
+export async function fetchProductsFromFirestore(customDeletedIds?: Set<string>): Promise<Product[] | null> {
   try {
     if (!db) return null;
     const colRef = collection(db, PRODUCTS_COLLECTION);
     const snap = await getDocs(colRef);
     if (snap.empty) return null;
 
+    const delSet = customDeletedIds || getDeletedProductIds();
     const products: Product[] = [];
+    const idsToPurge: string[] = [];
+
     snap.forEach((docSnap) => {
+      const docId = docSnap.id;
+      if (delSet.has(docId)) {
+        idsToPurge.push(docId);
+        return;
+      }
+
       const data = docSnap.data() as Partial<Product>;
       if (data && data.id) {
+        if (delSet.has(data.id)) {
+          idsToPurge.push(data.id);
+          return;
+        }
+
         products.push({
           id: data.id,
           title: data.title || '',
@@ -108,7 +138,7 @@ export async function fetchProductsFromFirestore(): Promise<Product[] | null> {
           subCategory: data.subCategory || 'General',
           price: typeof data.price === 'number' ? data.price : 0,
           originalPrice: typeof data.originalPrice === 'number' ? data.originalPrice : undefined,
-          image: data.image || '',
+          image: sanitizeProductImage(data.image, data.title, data.mainCategory),
           description: data.description || '',
           inStock: data.inStock !== false,
           featured: Boolean(data.featured),
@@ -121,6 +151,13 @@ export async function fetchProductsFromFirestore(): Promise<Product[] | null> {
         });
       }
     });
+
+    // Asynchronously delete any phantom records from Firestore
+    if (idsToPurge.length > 0) {
+      idsToPurge.forEach((id) => {
+        deleteProductFromFirestore(id).catch(() => {});
+      });
+    }
 
     products.sort((a, b) => {
       const numA = parseInt(a.id.replace(/\D/g, ''), 10) || 0;
@@ -148,7 +185,7 @@ export async function saveProductToFirestore(product: Product): Promise<void> {
       mainCategory: product.mainCategory,
       subCategory: product.subCategory,
       price: Number(product.price) || 0,
-      image: product.image,
+      image: sanitizeProductImage(product.image, product.title, product.mainCategory),
       description: product.description || '',
       inStock: Boolean(product.inStock),
       rating: product.rating ?? 5.0,
@@ -243,14 +280,26 @@ export async function seedCatalogIfEmpty(): Promise<Product[] | null> {
 }
 
 /**
- * Batch saves updated products array to Firestore.
+ * Batch saves updated products array to Firestore, strictly purging any deleted products.
  */
-export async function syncAllProductsToFirestore(products: Product[]): Promise<void> {
+export async function syncAllProductsToFirestore(
+  products: Product[],
+  explicitDeletedId?: string
+): Promise<void> {
   try {
     if (!db) return;
+    const deletedIds = getDeletedProductIds();
+    if (explicitDeletedId) {
+      deletedIds.add(explicitDeletedId);
+    }
+
+    const validProducts = (products || []).filter(
+      (p) => p && p.id && !deletedIds.has(p.id)
+    );
+
     const chunkSize = 400;
-    for (let i = 0; i < products.length; i += chunkSize) {
-      const chunk = products.slice(i, i + chunkSize);
+    for (let i = 0; i < validProducts.length; i += chunkSize) {
+      const chunk = validProducts.slice(i, i + chunkSize);
       const batch = writeBatch(db);
 
       chunk.forEach((product) => {
@@ -263,7 +312,7 @@ export async function syncAllProductsToFirestore(products: Product[]): Promise<v
           price: product.price,
           image: product.image,
           description: product.description || '',
-          inStock: product.inStock,
+          inStock: Boolean(product.inStock),
           rating: product.rating ?? 5.0,
           reviewsCount: product.reviewsCount ?? 24,
           salesCount: product.salesCount ?? 60,
@@ -279,6 +328,15 @@ export async function syncAllProductsToFirestore(products: Product[]): Promise<v
       });
 
       await batch.commit();
+    }
+
+    // Explicitly purge any deleted products from Firestore
+    if (deletedIds.size > 0) {
+      for (const delId of deletedIds) {
+        try {
+          await deleteDoc(doc(db, PRODUCTS_COLLECTION, delId));
+        } catch {}
+      }
     }
   } catch (err) {
     console.error('Failed to sync products to Firestore:', err);

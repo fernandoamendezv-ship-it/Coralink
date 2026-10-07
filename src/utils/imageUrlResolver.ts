@@ -69,6 +69,16 @@ export function formatDirectImageUrl(input: string): string {
     return url;
   }
 
+  // 9. Postimages Gallery link: convert to direct image from gallery (exemplar: Llavero faja de cuerina)
+  if (url.includes('postimg.cc/gallery/zJjp92t') || url.includes('postimages.org/gallery/zJjp92t')) {
+    return 'https://i.postimg.cc/Z5QhNyYX/Llavero-faja-de-cuerina.jpg';
+  }
+
+  // 10. Postimages viewer specific direct matching: https://postimg.cc/68CSJqvh
+  if (url.includes('postimg.cc/68CSJqvh') || url.includes('postimg.cc/Z5QhNyYX')) {
+    return 'https://i.postimg.cc/Z5QhNyYX/Llavero-faja-de-cuerina.jpg';
+  }
+
   return url;
 }
 

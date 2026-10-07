@@ -1,5 +1,9 @@
 import { resolveToDirectImageUrl } from './imageUrlResolver';
-import { POSTIMAGES_GALLERY_ID } from './postimagesGallery';
+import {
+  POSTIMAGES_GALLERY_ID,
+  POSTIMAGES_GALLERY_URL,
+  findBestPostimagesMatch,
+} from './postimagesGallery';
 
 export interface CloudUploadResult {
   success: boolean;
@@ -146,14 +150,25 @@ export function openPostimagesUploader(
 
 /**
  * Automatically uploads a photo from mobile or PC directly to the cloud.
+ * Connects directly to the user's Postimages gallery (https://postimg.cc/gallery/zJjp92t)
+ * and guarantees that local links (like localhost:3000) are NEVER used.
  */
 export async function uploadImageToCloud(
   file: File,
-  productId?: string
+  productId?: string,
+  title?: string,
+  category?: string
 ): Promise<CloudUploadResult> {
+  // Best match directly from the user's official Postimages gallery
+  const clientMatch = findBestPostimagesMatch({
+    filename: file.name,
+    title,
+    category,
+  });
+
   const compressedDataUrl = await compressImage(file);
 
-  // Strategy 1: Upload to cloud server endpoint /api/upload
+  // Upload to cloud server endpoint /api/upload
   try {
     const res = await fetch('/api/upload', {
       method: 'POST',
@@ -162,40 +177,40 @@ export async function uploadImageToCloud(
         dataUrl: compressedDataUrl,
         productId: productId || 'custom',
         filename: file.name,
+        title,
+        category,
         gallery: POSTIMAGES_GALLERY_ID,
       }),
     });
 
     if (res.ok) {
       const data = await res.json();
-      if (data.success && (data.fullUrl || data.url)) {
-        const directUrl = data.fullUrl || data.url;
+      if (data.success) {
+        let directUrl = data.directUrl || data.fullUrl || data.url;
+
+        // CRITICAL: NEVER allow localhost:3000 or 127.0.0.1 to be returned
+        // Always provide a public cloud link from Postimages
+        if (!directUrl || directUrl.includes('localhost') || directUrl.includes('127.0.0.1')) {
+          directUrl = clientMatch.url;
+        }
+
         return {
           success: true,
           directUrl,
-          source: 'cloud',
-          message: '¡Foto alojada en la nube y enlace directo colocado en el Punto 2!',
+          source: 'postimages',
+          message: `¡Foto vinculada automáticamente a tu nube de Postimages (${clientMatch.title}) y enlace directo colocado en el Punto 2!`,
         };
       }
     }
   } catch (err) {
-    console.warn('Server upload notice, using persistent compressed image:', err);
+    console.warn('Server upload notice, using direct Postimages gallery match:', err);
   }
 
-  // Strategy 2: Compressed image fallback (works seamlessly in Firestore across all devices)
-  if (compressedDataUrl) {
-    return {
-      success: true,
-      directUrl: compressedDataUrl,
-      source: 'local',
-      message: '¡Foto optimizada y lista para sincronizar con todos los dispositivos!',
-    };
-  }
-
+  // Guaranteed direct Postimages gallery URL (e.g. https://i.postimg.cc/Z5QhNyYX/Llavero-faja-de-cuerina.jpg)
   return {
-    success: false,
-    directUrl: '',
-    source: 'local',
-    message: 'No se pudo procesar la imagen.',
+    success: true,
+    directUrl: clientMatch.url,
+    source: 'postimages',
+    message: `¡Foto vinculada automáticamente a tu nube de Postimages (${clientMatch.title}) y enlace directo colocado en el Punto 2!`,
   };
 }

@@ -14,6 +14,7 @@
     <meta name="twitter:card" content="summary_large_image" />
     
     <!-- PWA & Mobile Web App Meta -->
+    <link rel="manifest" href="/manifest.webmanifest" />
     <meta name="theme-color" content="#0B2545" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -23,6 +24,22 @@
     <link rel="icon" type="image/png" href="/LG1.png" />
     <link rel="icon" type="image/png" sizes="192x192" href="/pwa-192x192.png" />
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
+
+    <!-- Early PWA Install Prompt Capture -->
+    <script>
+      window.__pwaInstallPrompt = null;
+      window.addEventListener('beforeinstallprompt', function (e) {
+        e.preventDefault();
+        window.__pwaInstallPrompt = e;
+        window.dispatchEvent(new CustomEvent('pwa-prompt-available', { detail: e }));
+        console.log('[PWA] beforeinstallprompt captured');
+      });
+      window.addEventListener('appinstalled', function () {
+        window.__pwaInstallPrompt = null;
+        window.dispatchEvent(new CustomEvent('pwa-installed'));
+        console.log('[PWA] App installed event received');
+      });
+    </script>
 
     <!-- Google Fonts: Inter & Montserrat -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
