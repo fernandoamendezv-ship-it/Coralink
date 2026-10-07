@@ -392,57 +392,6 @@ var POSTIMAGES_GALLERY_ITEMS = [
     keywords: ["taza", "magica", "termocromica", "magica blanca"]
   }
 ];
-function normalizeString(str) {
-  return (str || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^a-z0-9]/g, " ").trim();
-}
-function findBestPostimagesMatch(query) {
-  const normFile = normalizeString(query.filename || "");
-  const normTitle = normalizeString(query.title || "");
-  const normCat = normalizeString(query.category || "");
-  const combined = `${normFile} ${normTitle} ${normCat}`;
-  if (combined.includes("llavero") && (combined.includes("faja") || combined.includes("cuerina") || combined.includes("cuero"))) {
-    const item = POSTIMAGES_GALLERY_ITEMS.find((i) => i.id === "llavero-faja-de-cuerina");
-    if (item) return item;
-  }
-  if (combined.includes("joya") || combined.includes("dije") || combined.includes("cadena") || combined.includes("collar")) {
-    if (combined.includes("doble")) {
-      const item2 = POSTIMAGES_GALLERY_ITEMS.find((i) => i.id === "dije-doble-cara-sin-cadena");
-      if (item2) return item2;
-    }
-    const item = POSTIMAGES_GALLERY_ITEMS.find((i) => i.id === "dije-sencillo-con-cadena");
-    if (item) return item;
-  }
-  let bestItem = POSTIMAGES_GALLERY_ITEMS[0];
-  let highestScore = -1;
-  for (const item of POSTIMAGES_GALLERY_ITEMS) {
-    let score = 0;
-    const normItemTitle = normalizeString(item.title);
-    if (normFile.includes(normItemTitle) || normItemTitle.includes(normFile)) {
-      score += 50;
-    }
-    if (normTitle && (normTitle.includes(normItemTitle) || normItemTitle.includes(normTitle))) {
-      score += 40;
-    }
-    for (const kw of item.keywords) {
-      const normKw = normalizeString(kw);
-      if (normFile.includes(normKw)) score += 15;
-      if (normTitle.includes(normKw)) score += 15;
-      if (normCat.includes(normKw)) score += 5;
-    }
-    if (normCat && normalizeString(item.category) === normCat) {
-      score += 10;
-    }
-    if (score > highestScore) {
-      highestScore = score;
-      bestItem = item;
-    }
-  }
-  if (highestScore <= 0) {
-    const exemplar = POSTIMAGES_GALLERY_ITEMS.find((i) => i.id === "llavero-faja-de-cuerina");
-    return exemplar || POSTIMAGES_GALLERY_ITEMS[0];
-  }
-  return bestItem;
-}
 
 // server.ts
 var __filename = fileURLToPath(import.meta.url);
@@ -741,9 +690,9 @@ app.get("/api/resolve-image", async (req, res) => {
     return res.json({ success: false, directUrl: rawUrl });
   }
 });
-app.post("/api/upload", (req, res) => {
+app.post("/api/upload", async (req, res) => {
   try {
-    const { dataUrl, productId, filename, title, category } = req.body;
+    const { dataUrl, productId, filename } = req.body;
     if (!dataUrl || typeof dataUrl !== "string") {
       return res.status(400).json({ success: false, message: "Falta la imagen" });
     }
@@ -777,21 +726,35 @@ app.post("/api/upload", (req, res) => {
     } catch (e) {
       console.warn("Could not sync to dist/uploads:", e);
     }
-    const matched = findBestPostimagesMatch({
-      filename: filename || safeName,
-      title: title || "",
-      category: category || ""
-    });
-    const directUrl = matched.url;
+    let directUrl = `/uploads/${safeName}`;
+    try {
+      const formData = new FormData();
+      formData.append("key", "6d207e02198a847aa98d0a2a901485a5");
+      formData.append("action", "upload");
+      formData.append("source", base64Data);
+      formData.append("format", "json");
+      const cloudRes = await fetch("https://freeimage.host/api/1/upload", {
+        method: "POST",
+        body: formData
+      });
+      if (cloudRes.ok) {
+        const cloudData = await cloudRes.json();
+        if (cloudData.status_code === 200 && cloudData.image?.url) {
+          directUrl = cloudData.image.url;
+          console.log(`Successfully uploaded user photo to cloud CDN: ${directUrl}`);
+        }
+      }
+    } catch (cloudErr) {
+      console.warn("Cloud CDN upload notice (using local /uploads/):", cloudErr);
+    }
     return res.json({
       success: true,
       url: directUrl,
-      fullUrl: directUrl,
+      fullUrl: directUrl.startsWith("http") ? directUrl : `${req.protocol}://${req.get("host")}${directUrl}`,
       directUrl,
+      localUrl: `/uploads/${safeName}`,
       filename: safeName,
-      matchedTitle: matched.title,
-      galleryUrl: POSTIMAGES_GALLERY_URL,
-      source: "postimages"
+      message: "\xA1Foto subida y seleccionada con \xE9xito!"
     });
   } catch (err) {
     console.error("Error uploading image:", err);

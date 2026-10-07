@@ -1589,7 +1589,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                                 )}
                                 <span>
                                   {isUploadingNewImage
-                                    ? 'Vinculando con Postimages...'
+                                    ? 'Subiendo a la nube...'
                                     : 'Subir Foto desde Móvil o PC'}
                                 </span>
                               </button>

@@ -60,24 +60,8 @@ export const PWAInstallButton: React.FC<PWAInstallButtonProps> = ({ variant = 'b
   // Detect Android user agent
   const isAndroid = typeof navigator !== 'undefined' && /android/i.test(navigator.userAgent);
 
-  // If already running as standalone app
+  // If already running as standalone app, hide completely without leaving any checkmark icon
   if (isInstalled || installSuccess) {
-    if (variant === 'menu') {
-      return (
-        <div className="w-full p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
-          <Check className="w-4 h-4 text-emerald-600 shrink-0" />
-          <span>¡Coralink instalada como App!</span>
-        </div>
-      );
-    }
-    if (variant === 'header') {
-      return (
-        <div className="inline-flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/60 text-emerald-800 dark:text-emerald-300 text-xs font-bold">
-          <Check className="w-3.5 h-3.5 text-emerald-600" />
-          <span className="hidden xs:inline">App Instalada</span>
-        </div>
-      );
-    }
     return null;
   }
 

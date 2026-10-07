@@ -644,7 +644,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                           )}
                           <span>
                             {isUploadingImage
-                              ? 'Vinculando con Postimages...'
+                              ? 'Subiendo a la nube...'
                               : 'Subir Foto desde Móvil o PC'}
                           </span>
                         </button>

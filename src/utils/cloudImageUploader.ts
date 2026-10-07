@@ -1,9 +1,5 @@
 import { resolveToDirectImageUrl } from './imageUrlResolver';
-import {
-  POSTIMAGES_GALLERY_ID,
-  POSTIMAGES_GALLERY_URL,
-  findBestPostimagesMatch,
-} from './postimagesGallery';
+import { POSTIMAGES_GALLERY_ID } from './postimagesGallery';
 
 export interface CloudUploadResult {
   success: boolean;
@@ -149,26 +145,18 @@ export function openPostimagesUploader(
 }
 
 /**
- * Automatically uploads a photo from mobile or PC directly to the cloud.
- * Connects directly to the user's Postimages gallery (https://postimg.cc/gallery/zJjp92t)
- * and guarantees that local links (like localhost:3000) are NEVER used.
+ * Automatically uploads a photo from mobile or PC directly to the cloud CDN.
+ * The user's actual selected photo is uploaded, saved, and set as the direct URL.
  */
 export async function uploadImageToCloud(
   file: File,
   productId?: string,
-  title?: string,
-  category?: string
+  _title?: string,
+  _category?: string
 ): Promise<CloudUploadResult> {
-  // Best match directly from the user's official Postimages gallery
-  const clientMatch = findBestPostimagesMatch({
-    filename: file.name,
-    title,
-    category,
-  });
-
   const compressedDataUrl = await compressImage(file);
 
-  // Upload to cloud server endpoint /api/upload
+  // 1. Upload to backend server endpoint /api/upload
   try {
     const res = await fetch('/api/upload', {
       method: 'POST',
@@ -177,40 +165,58 @@ export async function uploadImageToCloud(
         dataUrl: compressedDataUrl,
         productId: productId || 'custom',
         filename: file.name,
-        title,
-        category,
-        gallery: POSTIMAGES_GALLERY_ID,
       }),
     });
 
     if (res.ok) {
       const data = await res.json();
-      if (data.success) {
-        let directUrl = data.directUrl || data.fullUrl || data.url;
-
-        // CRITICAL: NEVER allow localhost:3000 or 127.0.0.1 to be returned
-        // Always provide a public cloud link from Postimages
-        if (!directUrl || directUrl.includes('localhost') || directUrl.includes('127.0.0.1')) {
-          directUrl = clientMatch.url;
-        }
-
+      if (data.success && data.directUrl) {
         return {
           success: true,
-          directUrl,
-          source: 'postimages',
-          message: `¡Foto vinculada automáticamente a tu nube de Postimages (${clientMatch.title}) y enlace directo colocado en el Punto 2!`,
+          directUrl: data.directUrl,
+          source: 'cloud',
+          message: '¡Foto subida a la nube y seleccionada con éxito!',
         };
       }
     }
   } catch (err) {
-    console.warn('Server upload notice, using direct Postimages gallery match:', err);
+    console.warn('Backend upload notice, attempting direct client cloud upload:', err);
   }
 
-  // Guaranteed direct Postimages gallery URL (e.g. https://i.postimg.cc/Z5QhNyYX/Llavero-faja-de-cuerina.jpg)
+  // 2. Direct client fallback to freeimage.host cloud CDN
+  try {
+    const base64Data = compressedDataUrl.replace(/^data:image\/[a-z]+;base64,/, '');
+    const formData = new FormData();
+    formData.append('key', '6d207e02198a847aa98d0a2a901485a5');
+    formData.append('action', 'upload');
+    formData.append('source', base64Data);
+    formData.append('format', 'json');
+
+    const cloudRes = await fetch('https://freeimage.host/api/1/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (cloudRes.ok) {
+      const cloudData = await cloudRes.json();
+      if (cloudData.status_code === 200 && cloudData.image?.url) {
+        return {
+          success: true,
+          directUrl: cloudData.image.url,
+          source: 'cloud',
+          message: '¡Foto subida a la nube y seleccionada con éxito!',
+        };
+      }
+    }
+  } catch (cloudErr) {
+    console.warn('Direct cloud CDN upload notice:', cloudErr);
+  }
+
+  // 3. Resilient fallback: return compressed high-quality data URL
   return {
     success: true,
-    directUrl: clientMatch.url,
-    source: 'postimages',
-    message: `¡Foto vinculada automáticamente a tu nube de Postimages (${clientMatch.title}) y enlace directo colocado en el Punto 2!`,
+    directUrl: compressedDataUrl,
+    source: 'local',
+    message: '¡Foto cargada y seleccionada localmente con éxito!',
   };
 }

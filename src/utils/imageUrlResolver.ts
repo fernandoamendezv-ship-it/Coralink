@@ -137,7 +137,11 @@ export async function resolveToDirectImageUrl(rawInput: string): Promise<string>
  */
 export function testImageUrl(url: string, timeoutMs = 4500): Promise<boolean> {
   return new Promise((resolve) => {
-    if (!url || typeof url !== 'string' || !url.startsWith('http')) {
+    if (
+      !url ||
+      typeof url !== 'string' ||
+      (!url.startsWith('http') && !url.startsWith('/') && !url.startsWith('data:'))
+    ) {
       resolve(false);
       return;
     }

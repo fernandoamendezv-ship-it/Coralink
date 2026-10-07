@@ -344,10 +344,10 @@ app.get('/api/resolve-image', async (req, res) => {
   }
 });
 
-// Endpoint to upload and persist product images directly to the server
-app.post('/api/upload', (req, res) => {
+// Endpoint to upload and persist product images directly to the server & cloud CDN
+app.post('/api/upload', async (req, res) => {
   try {
-    const { dataUrl, productId, filename, title, category } = req.body;
+    const { dataUrl, productId, filename } = req.body;
     if (!dataUrl || typeof dataUrl !== 'string') {
       return res.status(400).json({ success: false, message: 'Falta la imagen' });
     }
@@ -389,24 +389,43 @@ app.post('/api/upload', (req, res) => {
       console.warn('Could not sync to dist/uploads:', e);
     }
 
-    // Match image directly with user Postimages gallery: https://postimg.cc/gallery/zJjp92t
-    const matched = findBestPostimagesMatch({
-      filename: filename || safeName,
-      title: title || '',
-      category: category || '',
-    });
+    // Default to the local server URL
+    let directUrl = `/uploads/${safeName}`;
 
-    const directUrl = matched.url;
-    // Always provide the public Postimages direct URL (e.g. https://i.postimg.cc/Z5QhNyYX/Llavero-faja-de-cuerina.jpg)
+    // Upload user's actual photo to freeimage.host cloud CDN for a permanent global HTTPS link
+    try {
+      const formData = new FormData();
+      formData.append('key', '6d207e02198a847aa98d0a2a901485a5');
+      formData.append('action', 'upload');
+      formData.append('source', base64Data);
+      formData.append('format', 'json');
+
+      const cloudRes = await fetch('https://freeimage.host/api/1/upload', {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (cloudRes.ok) {
+        const cloudData = await cloudRes.json();
+        if (cloudData.status_code === 200 && cloudData.image?.url) {
+          directUrl = cloudData.image.url;
+          console.log(`Successfully uploaded user photo to cloud CDN: ${directUrl}`);
+        }
+      }
+    } catch (cloudErr) {
+      console.warn('Cloud CDN upload notice (using local /uploads/):', cloudErr);
+    }
+
     return res.json({
       success: true,
       url: directUrl,
-      fullUrl: directUrl,
+      fullUrl: directUrl.startsWith('http')
+        ? directUrl
+        : `${req.protocol}://${req.get('host')}${directUrl}`,
       directUrl: directUrl,
+      localUrl: `/uploads/${safeName}`,
       filename: safeName,
-      matchedTitle: matched.title,
-      galleryUrl: POSTIMAGES_GALLERY_URL,
-      source: 'postimages',
+      message: '¡Foto subida y seleccionada con éxito!',
     });
   } catch (err: any) {
     console.error('Error uploading image:', err);
