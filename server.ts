@@ -389,43 +389,18 @@ app.post('/api/upload', async (req, res) => {
       console.warn('Could not sync to dist/uploads:', e);
     }
 
-    // Default to the local server URL
-    let directUrl = `/uploads/${safeName}`;
-
-    // Upload user's actual photo to freeimage.host cloud CDN for a permanent global HTTPS link
-    try {
-      const formData = new FormData();
-      formData.append('key', '6d207e02198a847aa98d0a2a901485a5');
-      formData.append('action', 'upload');
-      formData.append('source', base64Data);
-      formData.append('format', 'json');
-
-      const cloudRes = await fetch('https://freeimage.host/api/1/upload', {
-        method: 'POST',
-        body: formData,
-      });
-
-      if (cloudRes.ok) {
-        const cloudData = await cloudRes.json();
-        if (cloudData.status_code === 200 && cloudData.image?.url) {
-          directUrl = cloudData.image.url;
-          console.log(`Successfully uploaded user photo to cloud CDN: ${directUrl}`);
-        }
-      }
-    } catch (cloudErr) {
-      console.warn('Cloud CDN upload notice (using local /uploads/):', cloudErr);
-    }
+    // Directly return the saved upload URL (no third-party iili.io CDN)
+    const directUrl = `/uploads/${safeName}`;
+    const fullUrl = `${req.protocol}://${req.get('host')}${directUrl}`;
 
     return res.json({
       success: true,
       url: directUrl,
-      fullUrl: directUrl.startsWith('http')
-        ? directUrl
-        : `${req.protocol}://${req.get('host')}${directUrl}`,
+      fullUrl: fullUrl,
       directUrl: directUrl,
-      localUrl: `/uploads/${safeName}`,
+      localUrl: directUrl,
       filename: safeName,
-      message: '¡Foto subida y seleccionada con éxito!',
+      message: '¡Foto guardada y seleccionada con éxito!',
     });
   } catch (err: any) {
     console.error('Error uploading image:', err);
@@ -541,6 +516,34 @@ export const INITIAL_PRODUCTS: Product[] = ${JSON.stringify(remaining, null, 2)}
 
   console.log(`Backend confirmed deletion of product: ${id}`);
   res.json({ success: true, message: `Product ${id} permanently deleted` });
+});
+
+// Privacy and Legal Configuration API endpoints
+const PRIVACY_FILE = path.join(__dirname, 'coralink-privacy-config.json');
+
+app.get('/api/privacy-config', (_req, res) => {
+  try {
+    if (fs.existsSync(PRIVACY_FILE)) {
+      const data = JSON.parse(fs.readFileSync(PRIVACY_FILE, 'utf-8'));
+      return res.json({ success: true, config: data });
+    }
+  } catch (err) {
+    console.warn('Could not read privacy config file:', err);
+  }
+  return res.json({ success: false, config: null });
+});
+
+app.post('/api/privacy-config', (req, res) => {
+  try {
+    const config = req.body;
+    if (config && typeof config === 'object') {
+      fs.writeFileSync(PRIVACY_FILE, JSON.stringify(config, null, 2), 'utf-8');
+      return res.json({ success: true, message: 'Configuración guardada en el servidor' });
+    }
+  } catch (err: any) {
+    console.error('Error saving privacy config on server:', err);
+  }
+  return res.status(400).json({ success: false, message: 'Datos inválidos' });
 });
 
 // Vite or Static files handling

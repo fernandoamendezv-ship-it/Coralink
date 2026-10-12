@@ -49,13 +49,5 @@ export async function validateFirestoreConnection(): Promise<boolean> {
   }
 }
 
-// Execute connection check safely in the background
-if (typeof window !== 'undefined') {
-  setTimeout(() => {
-    validateFirestoreConnection().catch((err) => {
-      console.warn('Background Firestore connection check notice:', err);
-    });
-  }, 100);
-}
-
+// Connection check helper (available on-demand, not running automatically on mount)
 export default app;

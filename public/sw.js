@@ -42,8 +42,16 @@ self.addEventListener('fetch', (event) => {
   const request = event.request;
   const url = new URL(request.url);
 
-  // Skip caching for non-GET requests and internal API endpoints
-  if (request.method !== 'GET' || url.pathname.startsWith('/api/')) {
+  // Skip caching for non-GET, internal API endpoints, and Vite dev server internals
+  if (
+    request.method !== 'GET' ||
+    url.pathname.startsWith('/api/') ||
+    url.pathname.startsWith('/@') ||
+    url.pathname.startsWith('/src/') ||
+    url.pathname.startsWith('/node_modules/') ||
+    url.search.includes('t=') ||
+    url.search.includes('v=')
+  ) {
     return;
   }
 

@@ -6,7 +6,7 @@
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
+  "orientation": "any",
   "theme_color": "#0B2545",
   "background_color": "#FFFFFF",
   "lang": "es",
@@ -37,14 +37,14 @@
       "short_name": "Joyería",
       "description": "Explora llaveros, pulseras y collares personalizados en Coralink",
       "url": "/?cat=joyas",
-      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png" }]
     },
     {
       "name": "Papelería Creativa",
       "short_name": "Papelería",
       "description": "Explora agendas, stickers y papelería personalizada",
       "url": "/?cat=papeleria",
-      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192" }]
+      "icons": [{ "src": "/pwa-192x192.png", "sizes": "192x192", "type": "image/png" }]
     }
   ]
 }

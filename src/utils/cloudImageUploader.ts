@@ -183,40 +183,24 @@ export async function uploadImageToCloud(
     console.warn('Backend upload notice, attempting direct client cloud upload:', err);
   }
 
-  // 2. Direct client fallback to freeimage.host cloud CDN
-  try {
-    const base64Data = compressedDataUrl.replace(/^data:image\/[a-z]+;base64,/, '');
-    const formData = new FormData();
-    formData.append('key', '6d207e02198a847aa98d0a2a901485a5');
-    formData.append('action', 'upload');
-    formData.append('source', base64Data);
-    formData.append('format', 'json');
-
-    const cloudRes = await fetch('https://freeimage.host/api/1/upload', {
-      method: 'POST',
-      body: formData,
-    });
-
-    if (cloudRes.ok) {
-      const cloudData = await cloudRes.json();
-      if (cloudData.status_code === 200 && cloudData.image?.url) {
-        return {
-          success: true,
-          directUrl: cloudData.image.url,
-          source: 'cloud',
-          message: '¡Foto subida a la nube y seleccionada con éxito!',
-        };
-      }
-    }
-  } catch (cloudErr) {
-    console.warn('Direct cloud CDN upload notice:', cloudErr);
-  }
-
-  // 3. Resilient fallback: return compressed high-quality data URL
+  // 2. Resilient fallback: return compressed high-quality data URL
   return {
     success: true,
     directUrl: compressedDataUrl,
     source: 'local',
-    message: '¡Foto cargada y seleccionada localmente con éxito!',
+    message: '¡Foto cargada y seleccionada con éxito!',
   };
+}
+
+/**
+ * Opens the official Postimages gallery (zJjp92t) in a new tab/window for the user
+ * to upload their photo directly, copy the direct link, and place it into Punto 2.
+ */
+export function openPostimagesGalleryUpload(): Window | null {
+  if (typeof window === 'undefined') return null;
+  return window.open(
+    'https://postimg.cc/gallery/zJjp92t',
+    '_blank',
+    'noopener,noreferrer'
+  );
 }

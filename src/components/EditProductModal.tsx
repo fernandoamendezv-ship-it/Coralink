@@ -31,7 +31,7 @@ import {
   testImageUrl,
   isViewerPageUrl,
 } from '../utils/imageUrlResolver';
-import { uploadImageToCloud, openPostimagesUploader } from '../utils/cloudImageUploader';
+import { uploadImageToCloud, openPostimagesUploader, openPostimagesGalleryUpload } from '../utils/cloudImageUploader';
 import { POSTIMAGES_GALLERY_URL } from '../utils/postimagesGallery';
 import { OfficialGalleryPickerModal } from './OfficialGalleryPickerModal';
 
@@ -276,6 +276,37 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       if (e.target) {
         e.target.value = '';
       }
+    }
+  };
+
+  const handleOpenPostimages = () => {
+    openPostimagesGalleryUpload();
+    setUploadSuccessMsg('Se abrió tu galería Postimages (zJjp92t). Al subir tu foto, copia el enlace directo y pulsa «Pegar Enlace Copiado».');
+    setTimeout(() => setUploadSuccessMsg(null), 8000);
+  };
+
+  const handlePasteFromClipboard = async () => {
+    try {
+      if (navigator?.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          const trimmed = text.trim();
+          setImage(trimmed);
+          processImageLink(trimmed);
+          setUploadSuccessMsg('¡Enlace pegado y colocado en el Punto 2!');
+          setTimeout(() => setUploadSuccessMsg(null), 5000);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Clipboard read error:', e);
+    }
+    const val = window.prompt('Pega aquí el enlace que copiaste de Postimages:');
+    if (val && val.trim()) {
+      setImage(val.trim());
+      processImageLink(val.trim());
+      setUploadSuccessMsg('¡Enlace colocado en el Punto 2!');
+      setTimeout(() => setUploadSuccessMsg(null), 5000);
     }
   };
 
@@ -632,21 +663,22 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                         <button
                           type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploadingImage}
-                          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#ff8555] hover:from-[#e85a26] hover:to-[#FF6B35] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
-                          title="Cargar foto desde tu celular o PC y generar automáticamente el enlace directo de Postimages (https://i.postimg.cc/...)"
+                          onClick={handleOpenPostimages}
+                          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-sky-600 to-[#1BA7D9] hover:from-sky-700 hover:to-[#158db8] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
+                          title="Abrir tu galería Postimages (https://postimg.cc/gallery/zJjp92t) para cargar la foto"
                         >
-                          {isUploadingImage ? (
-                            <Loader2 className="w-4 h-4 text-white animate-spin" />
-                          ) : (
-                            <Upload className="w-4 h-4 text-white" />
-                          )}
-                          <span>
-                            {isUploadingImage
-                              ? 'Subiendo a la nube...'
-                              : 'Subir Foto desde Móvil o PC'}
-                          </span>
+                          <ExternalLink className="w-4 h-4 text-white" />
+                          <span>1. Subir a mi Galería Postimages</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={handlePasteFromClipboard}
+                          className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
+                          title="Pegar el enlace directo que copiaste de Postimages y colocarlo en el Punto 2"
+                        >
+                          <Copy className="w-4 h-4 text-white" />
+                          <span>2. Pegar Enlace Copiado</span>
                         </button>
 
                         <button
@@ -656,12 +688,31 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                           title="Elegir foto directamente de tu galería oficial (https://postimg.cc/gallery/zJjp92t)"
                         >
                           <Sparkles className="w-4 h-4 text-[#1BA7D9]" />
-                          <span>Elegir de tu Galería (zJjp92t)</span>
+                          <span>Elegir de mi Galería (zJjp92t)</span>
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => fileInputRef.current?.click()}
+                          disabled={isUploadingImage}
+                          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#ff8555] hover:from-[#e85a26] hover:to-[#FF6B35] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
+                          title="Cargar foto desde tu celular o PC directamente al servidor"
+                        >
+                          {isUploadingImage ? (
+                            <Loader2 className="w-4 h-4 text-white animate-spin" />
+                          ) : (
+                            <Upload className="w-4 h-4 text-white" />
+                          )}
+                          <span>
+                            {isUploadingImage
+                              ? 'Guardando foto...'
+                              : 'Subir Foto desde Móvil o PC'}
+                          </span>
                         </button>
                       </div>
 
                       <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
-                        <span>Galería oficial vinculada: <strong className="text-[#1BA7D9]">postimg.cc/gallery/zJjp92t</strong></span>
+                        <span>Galería oficial: <strong className="text-[#1BA7D9]">postimg.cc/gallery/zJjp92t</strong></span>
                         <a
                           href={POSTIMAGES_GALLERY_URL}
                           target="_blank"
@@ -685,7 +736,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
-                          2. Enlace Directo en la Nube (Punto 2 - Se autocompleta en automático al subir foto arriba):
+                          2. Enlace Directo en la Nube (Punto 2 - Se autocompleta con enlace https://i.postimg.cc/...):
                         </span>
                         {image && (
                           <button
@@ -713,7 +764,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                               setImage(val);
                               processImageLink(val);
                             }}
-                            placeholder="Pega aquí: https://postimg.cc/... o enlace directo .jpg/.png"
+                            placeholder="Pega aquí: https://i.postimg.cc/... o https://postimg.cc/..."
                             className="w-full pl-3 pr-9 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] outline-none font-mono"
                           />
                           {image && (
@@ -731,6 +782,16 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                             </button>
                           )}
                         </div>
+
+                        <button
+                          type="button"
+                          onClick={handlePasteFromClipboard}
+                          className="px-2.5 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shrink-0 border border-slate-300 dark:border-slate-700"
+                          title="Pegar del portapapeles"
+                        >
+                          <Copy className="w-3.5 h-3.5 text-[#1BA7D9]" />
+                          <span className="hidden sm:inline">Pegar</span>
+                        </button>
 
                         <button
                           type="button"

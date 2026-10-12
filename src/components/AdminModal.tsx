@@ -34,13 +34,23 @@ import {
   Layers,
   Trash2,
   Loader2,
+  ExternalLink,
+  Clock,
+  FileText,
+  MapPin,
 } from 'lucide-react';
 import { CoralinkLogo } from './CoralinkLogo';
 import { EditProductModal } from './EditProductModal';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
 import { formatDirectImageUrl } from '../utils/imageUrlResolver';
-import { uploadImageToCloud, openPostimagesUploader } from '../utils/cloudImageUploader';
+import { uploadImageToCloud, openPostimagesUploader, openPostimagesGalleryUpload } from '../utils/cloudImageUploader';
 import { OfficialGalleryPickerModal } from './OfficialGalleryPickerModal';
+import {
+  getPrivacyConfig,
+  savePrivacyConfig,
+  DEFAULT_PRIVACY_CONFIG,
+  PrivacyLegalConfig,
+} from '../utils/privacyConfig';
 import {
   verifyAdminPassword,
   setAdminPassword,
@@ -89,12 +99,32 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   enabledCategories,
   onToggleCategory,
 }) => {
-  const [activeTab, setActiveTab] = useState<'products' | 'logo' | 'security'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'logo' | 'privacy' | 'security'>('products');
   const [localProducts, setLocalProducts] = useState<Product[]>(products);
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedMainCat, setSelectedMainCat] = useState<string>('Todas');
   const [selectedProductToEdit, setSelectedProductToEdit] = useState<Product | null>(null);
   const [recoverToastMsg, setRecoverToastMsg] = useState<string | null>(null);
+
+  // Privacy Policy & Legal Details Editable State
+  const [privacyForm, setPrivacyForm] = useState<PrivacyLegalConfig>(() => getPrivacyConfig());
+  const [privacySaveToast, setPrivacySaveToast] = useState(false);
+
+  const handleSavePrivacyConfig = (e: React.FormEvent) => {
+    e.preventDefault();
+    savePrivacyConfig(privacyForm);
+    setPrivacySaveToast(true);
+    setTimeout(() => setPrivacySaveToast(false), 3500);
+  };
+
+  const handleResetPrivacyConfig = () => {
+    if (window.confirm('¿Deseas restablecer los datos de privacidad a los valores oficiales de Coralink?')) {
+      setPrivacyForm(DEFAULT_PRIVACY_CONFIG);
+      savePrivacyConfig(DEFAULT_PRIVACY_CONFIG);
+      setPrivacySaveToast(true);
+      setTimeout(() => setPrivacySaveToast(false), 3500);
+    }
+  };
 
   // Keep local products in sync when parent products change, strictly filtering out deleted items
   useEffect(() => {
@@ -296,6 +326,36 @@ export const AdminModal: React.FC<AdminModalProps> = ({
     }
   };
 
+  const handleOpenPostimagesForNew = () => {
+    openPostimagesGalleryUpload();
+    setNewImageUploadMsg('Se abrió tu galería Postimages (zJjp92t). Al subir la foto, copia el enlace y pulsa «Pegar Enlace Copiado».');
+    setTimeout(() => setNewImageUploadMsg(null), 8000);
+  };
+
+  const handlePasteFromClipboardForNew = async () => {
+    try {
+      if (navigator?.clipboard?.readText) {
+        const text = await navigator.clipboard.readText();
+        if (text && text.trim()) {
+          const trimmed = formatDirectImageUrl(text.trim());
+          setNewProduct((prev) => ({ ...prev, image: trimmed }));
+          setNewImageUploadMsg('¡Enlace copiado de Postimages colocado en el Punto 2!');
+          setTimeout(() => setNewImageUploadMsg(null), 5000);
+          return;
+        }
+      }
+    } catch (e) {
+      console.warn('Clipboard read error:', e);
+    }
+    const val = window.prompt('Pega aquí el enlace que copiaste de Postimages:');
+    if (val && val.trim()) {
+      const trimmed = formatDirectImageUrl(val.trim());
+      setNewProduct((prev) => ({ ...prev, image: trimmed }));
+      setNewImageUploadMsg('¡Enlace colocado en el Punto 2!');
+      setTimeout(() => setNewImageUploadMsg(null), 5000);
+    }
+  };
+
   // Sync state
   useEffect(() => {
     setLocalProducts(products);
@@ -321,6 +381,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       setSavedContactsSuccess(false);
       setSavedEmail(getRecoveryEmail());
       setSavedPhone(getRecoveryPhone());
+      setPrivacyForm(getPrivacyConfig());
     }
   }, [isOpen]);
 
@@ -957,6 +1018,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 </button>
 
                 <button
+                  onClick={() => setActiveTab('privacy')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeTab === 'privacy'
+                      ? 'bg-[#0B2545] dark:bg-[#1BA7D9] text-white shadow-xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <FileText className="w-4 h-4 text-emerald-500" />
+                  <span>Datos de Privacidad y Contacto</span>
+                </button>
+
+                <button
                   onClick={() => setActiveTab('security')}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                     activeTab === 'security'
@@ -1366,6 +1439,213 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   </div>
                 </div>
               </div>
+            ) : activeTab === 'privacy' ? (
+              /* TAB: DATOS DE PRIVACIDAD, CONTACTO Y TIENDA */
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6">
+                <div className="max-w-3xl mx-auto bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-6">
+                  {/* Title & Description */}
+                  <div className="border-b border-slate-100 dark:border-slate-800 pb-4">
+                    <div className="flex items-center gap-2 text-base sm:text-lg font-black text-[#0B2545] dark:text-white">
+                      <FileText className="w-5 h-5 text-emerald-500" />
+                      <span>Datos de Privacidad, Contacto y Tienda</span>
+                    </div>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 mt-1 leading-relaxed">
+                      Configura el correo electrónico oficial, número de WhatsApp/teléfono, horario de atención, domicilio y otros datos legales que aparecen en la Política de Privacidad y en la aplicación (requisitos para Google Play y Apple App Store).
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleSavePrivacyConfig} className="space-y-5">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      {/* Email */}
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Correo Electrónico Oficial de Contacto *
+                        </label>
+                        <div className="relative flex items-center">
+                          <Mail className="w-4 h-4 text-slate-400 absolute left-3" />
+                          <input
+                            type="email"
+                            required
+                            value={privacyForm.email}
+                            onChange={(e) => setPrivacyForm({ ...privacyForm, email: e.target.value.trim() })}
+                            placeholder="ej. fernando.a.mendez.v@gmail.com"
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] focus:ring-1 focus:ring-[#1BA7D9] outline-none"
+                          />
+                        </div>
+                        <span className="text-[10px] text-slate-400 mt-0.5 block">
+                          Requerido para responder a solicitudes de borrado y consulta de datos.
+                        </span>
+                      </div>
+
+                      {/* Phone / WhatsApp */}
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Teléfono / WhatsApp Oficial *
+                        </label>
+                        <div className="relative flex items-center">
+                          <Phone className="w-4 h-4 text-emerald-500 absolute left-3" />
+                          <input
+                            type="text"
+                            required
+                            value={privacyForm.phone}
+                            onChange={(e) => setPrivacyForm({ ...privacyForm, phone: e.target.value })}
+                            placeholder="ej. +505 82045433"
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] focus:ring-1 focus:ring-[#1BA7D9] outline-none"
+                          />
+                        </div>
+                        <span className="text-[10px] text-slate-400 mt-0.5 block">
+                          Número mostrado para atención al cliente y soporte de WhatsApp.
+                        </span>
+                      </div>
+
+                      {/* Business Name */}
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Nombre Comercial / Entidad *
+                        </label>
+                        <div className="relative flex items-center">
+                          <Shield className="w-4 h-4 text-[#1BA7D9] absolute left-3" />
+                          <input
+                            type="text"
+                            required
+                            value={privacyForm.businessName}
+                            onChange={(e) => setPrivacyForm({ ...privacyForm, businessName: e.target.value })}
+                            placeholder="ej. Coralink"
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] focus:ring-1 focus:ring-[#1BA7D9] outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Hours */}
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Horario Oficial de Atención *
+                        </label>
+                        <div className="relative flex items-center">
+                          <Clock className="w-4 h-4 text-amber-500 absolute left-3" />
+                          <input
+                            type="text"
+                            required
+                            value={privacyForm.hours}
+                            onChange={(e) => setPrivacyForm({ ...privacyForm, hours: e.target.value })}
+                            placeholder="ej. Lunes a Sábado, de 8:00 AM a 6:00 PM (Hora de Nicaragua)"
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] focus:ring-1 focus:ring-[#1BA7D9] outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Address */}
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Domicilio Legal / Ubicación Comercial *
+                        </label>
+                        <div className="relative flex items-center">
+                          <MapPin className="w-4 h-4 text-[#FF6B35] absolute left-3" />
+                          <input
+                            type="text"
+                            required
+                            value={privacyForm.address}
+                            onChange={(e) => setPrivacyForm({ ...privacyForm, address: e.target.value })}
+                            placeholder="Corn Island, Región Autónoma de la Costa Caribe Sur (RACCS), Nicaragua"
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] focus:ring-1 focus:ring-[#1BA7D9] outline-none"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Policy Version & Last Updated */}
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Versión de la Política
+                        </label>
+                        <input
+                          type="text"
+                          value={privacyForm.version}
+                          onChange={(e) => setPrivacyForm({ ...privacyForm, version: e.target.value })}
+                          placeholder="2.4"
+                          className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] focus:ring-1 focus:ring-[#1BA7D9] outline-none font-mono"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Fecha de Última Actualización
+                        </label>
+                        <input
+                          type="text"
+                          value={privacyForm.lastUpdated}
+                          onChange={(e) => setPrivacyForm({ ...privacyForm, lastUpdated: e.target.value })}
+                          placeholder="Octubre de 2026"
+                          className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] focus:ring-1 focus:ring-[#1BA7D9] outline-none"
+                        />
+                      </div>
+
+                      {/* Response time */}
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Plazo de Respuesta a Solicitudes de Borrado de Datos (RGPD / Tiendas de Apps)
+                        </label>
+                        <input
+                          type="text"
+                          value={privacyForm.deletionResponseHours}
+                          onChange={(e) => setPrivacyForm({ ...privacyForm, deletionResponseHours: e.target.value })}
+                          placeholder="48 horas hábiles"
+                          className="w-full px-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] focus:ring-1 focus:ring-[#1BA7D9] outline-none"
+                        />
+                        <span className="text-[10px] text-slate-400 mt-0.5 block">
+                          Estándar legal de respuesta ante solicitudes de usuarios para eliminar sus datos.
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Live Preview Card */}
+                    <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-black text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
+                          <Eye className="w-3.5 h-3.5 text-[#1BA7D9]" />
+                          <span>Vista previa de contacto en la Política:</span>
+                        </span>
+                        <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 font-bold border border-emerald-500/20">
+                          Sincronizado en tiempo real
+                        </span>
+                      </div>
+                      <div className="text-xs text-slate-600 dark:text-slate-300 space-y-1 bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700/80">
+                        <p><strong>Responsable:</strong> {privacyForm.businessName} • {privacyForm.address}</p>
+                        <p><strong>Email oficial:</strong> <span className="text-[#1BA7D9] font-mono">{privacyForm.email}</span></p>
+                        <p><strong>WhatsApp / Teléfono:</strong> <span className="text-emerald-600 font-mono">{privacyForm.phone}</span></p>
+                        <p><strong>Horario de atención:</strong> {privacyForm.hours}</p>
+                        <p><strong>Versión vigente:</strong> {privacyForm.version} ({privacyForm.lastUpdated})</p>
+                      </div>
+                    </div>
+
+                    {/* Action buttons */}
+                    <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3">
+                      <button
+                        type="button"
+                        onClick={handleResetPrivacyConfig}
+                        className="px-4 py-2 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-600 dark:text-slate-300 flex items-center gap-1.5 transition-colors cursor-pointer"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                        <span>Restablecer Valores Oficiales</span>
+                      </button>
+
+                      <div className="flex items-center gap-3">
+                        {privacySaveToast && (
+                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 animate-in fade-in">
+                            <Check className="w-4 h-4" /> ¡Datos de privacidad actualizados con éxito!
+                          </span>
+                        )}
+                        <button
+                          type="submit"
+                          className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center gap-1.5 shadow-md shadow-emerald-600/25 transition-all cursor-pointer"
+                        >
+                          <Save className="w-4 h-4" />
+                          <span>Guardar Cambios de Privacidad</span>
+                        </button>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+              </div>
             ) : (
               /* TAB 3: PRODUCTOS Y PRECIOS */
               <div className="flex-1 flex flex-col min-h-0">
@@ -1577,21 +1857,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                               <button
                                 type="button"
-                                onClick={() => newProductFileInputRef.current?.click()}
-                                disabled={isUploadingNewImage}
-                                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#ff8555] hover:from-[#e85a26] hover:to-[#FF6B35] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
-                                title="Cargar foto desde tu móvil o PC y generar enlace directo de Postimages (https://i.postimg.cc/...)"
+                                onClick={handleOpenPostimagesForNew}
+                                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-sky-600 to-[#1BA7D9] hover:from-sky-700 hover:to-[#158db8] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
+                                title="Abrir tu galería Postimages (https://postimg.cc/gallery/zJjp92t) para cargar foto"
                               >
-                                {isUploadingNewImage ? (
-                                  <Loader2 className="w-4 h-4 text-white animate-spin" />
-                                ) : (
-                                  <Upload className="w-4 h-4 text-white" />
-                                )}
-                                <span>
-                                  {isUploadingNewImage
-                                    ? 'Subiendo a la nube...'
-                                    : 'Subir Foto desde Móvil o PC'}
-                                </span>
+                                <ExternalLink className="w-4 h-4 text-white" />
+                                <span>1. Subir a mi Galería Postimages</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={handlePasteFromClipboardForNew}
+                                className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
+                                title="Pegar enlace directo copiado de Postimages y colocarlo en el Punto 2"
+                              >
+                                <Copy className="w-4 h-4 text-white" />
+                                <span>2. Pegar Enlace Copiado</span>
                               </button>
 
                               <button
@@ -1602,6 +1883,25 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                               >
                                 <Sparkles className="w-4 h-4 text-[#1BA7D9]" />
                                 <span>Elegir de tu Galería (zJjp92t)</span>
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={() => newProductFileInputRef.current?.click()}
+                                disabled={isUploadingNewImage}
+                                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#ff8555] hover:from-[#e85a26] hover:to-[#FF6B35] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
+                                title="Cargar foto desde tu móvil o PC directamente al servidor"
+                              >
+                                {isUploadingNewImage ? (
+                                  <Loader2 className="w-4 h-4 text-white animate-spin" />
+                                ) : (
+                                  <Upload className="w-4 h-4 text-white" />
+                                )}
+                                <span>
+                                  {isUploadingNewImage
+                                    ? 'Guardando foto...'
+                                    : 'Subir Foto desde Móvil o PC'}
+                                </span>
                               </button>
                             </div>
 
@@ -1619,15 +1919,26 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
                           <div>
                             <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                              2. Enlace Directo en la Nube (Punto 2 - Se autocompleta al subir foto arriba):
+                              2. Enlace Directo en la Nube (Punto 2 - Se autocompleta con https://i.postimg.cc/...):
                             </span>
-                            <input
-                              type="text"
-                              value={newProduct.image}
-                              onChange={(e) => setNewProduct({ ...newProduct, image: e.target.value })}
-                              placeholder="https://i.postimg.cc/... o pega tu enlace"
-                              className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-mono"
-                            />
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                value={newProduct.image}
+                                onChange={(e) => setNewProduct({ ...newProduct, image: formatDirectImageUrl(e.target.value) })}
+                                placeholder="https://i.postimg.cc/... o https://postimg.cc/..."
+                                className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white font-mono"
+                              />
+                              <button
+                                type="button"
+                                onClick={handlePasteFromClipboardForNew}
+                                className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center gap-1 transition-all cursor-pointer shrink-0 border border-slate-300 dark:border-slate-700"
+                                title="Pegar enlace del portapapeles"
+                              >
+                                <Copy className="w-3.5 h-3.5 text-[#1BA7D9]" />
+                                <span className="hidden sm:inline">Pegar</span>
+                              </button>
+                            </div>
                           </div>
                         </div>
                       </div>

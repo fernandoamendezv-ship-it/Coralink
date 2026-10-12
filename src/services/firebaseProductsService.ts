@@ -339,6 +339,6 @@ export async function syncAllProductsToFirestore(
       }
     }
   } catch (err) {
-    console.error('Failed to sync products to Firestore:', err);
+    console.debug('Firestore sync notice:', err);
   }
 }

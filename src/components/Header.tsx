@@ -15,6 +15,8 @@ import {
   Share2,
   Check,
   RefreshCw,
+  FileText,
+  Shield,
 } from 'lucide-react';
 import { CoralinkLogo } from './CoralinkLogo';
 import { PWAInstallButton } from './PWAInstallButton';
@@ -28,6 +30,7 @@ interface HeaderProps {
   onOpenFavorites: () => void;
   onOpenAdmin: () => void;
   onOpenPWAStatus?: () => void;
+  onOpenPrivacyPolicy?: () => void;
   isAdmin: boolean;
   onGoHome: () => void;
   isDarkMode: boolean;
@@ -54,6 +57,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenFavorites,
   onOpenAdmin,
   onOpenPWAStatus,
+  onOpenPrivacyPolicy,
   isAdmin,
   onGoHome,
   isDarkMode,
@@ -427,24 +431,24 @@ export const Header: React.FC<HeaderProps> = ({
                     </div>
                   </button>
 
-                  {/* Verificar PWA Option */}
-                  {onOpenPWAStatus && (
+                  {/* Política de Privacidad Option */}
+                  {onOpenPrivacyPolicy && (
                     <button
                       onClick={() => {
                         setIsMenuOpen(false);
-                        onOpenPWAStatus();
+                        onOpenPrivacyPolicy();
                       }}
                       className="w-full p-2.5 rounded-xl hover:bg-slate-100 dark:hover:bg-slate-700/60 transition-colors flex items-center gap-2.5 text-left cursor-pointer"
                     >
-                      <div className="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-950/60 flex items-center justify-center text-emerald-600">
-                        <ShieldCheck className="w-4 h-4" />
+                      <div className="w-8 h-8 rounded-lg bg-sky-100 dark:bg-sky-950/60 flex items-center justify-center text-[#1BA7D9]">
+                        <FileText className="w-4 h-4" />
                       </div>
                       <div>
                         <div className="text-xs font-bold text-slate-800 dark:text-white leading-tight">
-                          Verificar PWA &amp; Offline
+                          Política de Privacidad
                         </div>
                         <div className="text-[10px] text-slate-500 dark:text-slate-400 leading-tight">
-                          Diagnóstico de Service Worker y caché
+                          Cumplimiento RGPD, CCPA y Tiendas de Apps
                         </div>
                       </div>
                     </button>

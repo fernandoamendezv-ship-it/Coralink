@@ -6,9 +6,15 @@ interface FooterProps {
   onOpenAdmin: () => void;
   logoUrl?: string;
   onForceSync?: () => void;
+  onOpenPrivacyPolicy?: () => void;
 }
 
-export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, logoUrl, onForceSync }) => {
+export const Footer: React.FC<FooterProps> = ({
+  onOpenAdmin,
+  logoUrl,
+  onForceSync,
+  onOpenPrivacyPolicy,
+}) => {
   return (
     <footer className="bg-[#0B2545] text-white border-t border-slate-800 pt-10 pb-20 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto flex flex-col items-center text-center space-y-5">
@@ -62,6 +68,18 @@ export const Footer: React.FC<FooterProps> = ({ onOpenAdmin, logoUrl, onForceSyn
           >
             Panel de Administrador
           </button>
+          {onOpenPrivacyPolicy && (
+            <>
+              <span className="text-slate-600">•</span>
+              <button
+                type="button"
+                onClick={onOpenPrivacyPolicy}
+                className="text-slate-400 hover:text-white underline cursor-pointer"
+              >
+                Política de Privacidad
+              </button>
+            </>
+          )}
         </div>
 
         {/* PROMINENT SYNC BADGE / BUTTON IN FOOTER */}

@@ -16,6 +16,7 @@ import { QuoteDrawer } from './components/QuoteDrawer';
 import { FavoritesModal } from './components/FavoritesModal';
 import { AdminModal } from './components/AdminModal';
 import { PWAStatusModal } from './components/PWAStatusModal';
+import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { BottomNavBar } from './components/BottomNavBar';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { Footer } from './components/Footer';
@@ -54,9 +55,7 @@ export default function App() {
         ) {
           return saved;
         }
-      } catch (err) {
-        console.error('Failed to read logo from storage:', err);
-      }
+      } catch (_) {}
     }
     return CORALINK_LOGO_URL;
   });
@@ -77,27 +76,21 @@ export default function App() {
         localStorage.removeItem('coralink_custom_logo');
         setStoreLogo(CORALINK_LOGO_URL);
       }
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (_) {}
   }, []);
 
   const handleUpdateLogo = (newLogoUrl: string) => {
     setStoreLogo(newLogoUrl);
     try {
       localStorage.setItem('coralink_custom_logo', newLogoUrl);
-    } catch (err) {
-      console.error('Failed to save logo to storage:', err);
-    }
+    } catch (_) {}
   };
 
   const handleResetLogo = () => {
     setStoreLogo(CORALINK_LOGO_URL);
     try {
       localStorage.removeItem('coralink_custom_logo');
-    } catch (err) {
-      console.error('Failed to remove custom logo from storage:', err);
-    }
+    } catch (_) {}
   };
 
   // PWA Install & Update hook
@@ -165,6 +158,7 @@ export default function App() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [isFavoritesOpen, setIsFavoritesOpen] = useState(false);
   const [isPWAStatusOpen, setIsPWAStatusOpen] = useState(false);
+  const [isPrivacyPolicyOpen, setIsPrivacyPolicyOpen] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
 
   // Admin session lock handlers: Always lock on open/close and closing tab
@@ -234,9 +228,7 @@ export default function App() {
         try {
           localStorage.setItem('coralink_custom_products', JSON.stringify(clean));
           localStorage.setItem('coralink_custom_products_backup', JSON.stringify(clean));
-        } catch (e) {
-          console.error(e);
-        }
+        } catch (_) {}
         setSyncToastMsg('¡Catálogo sincronizado exitosamente!');
         setTimeout(() => setSyncToastMsg(null), 3000);
         return;
@@ -255,8 +247,7 @@ export default function App() {
       } else {
         setSyncToastMsg('¡Catálogo al día!');
       }
-    } catch (err) {
-      console.warn('Manual sync fallback notice:', err);
+    } catch (_) {
       setSyncToastMsg('¡Catálogo al día!');
     } finally {
       setIsManualSyncing(false);
@@ -268,18 +259,14 @@ export default function App() {
   useEffect(() => {
     try {
       localStorage.setItem('coralink_cart', JSON.stringify(cart));
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (_) {}
   }, [cart]);
 
   // Save favorites changes
   useEffect(() => {
     try {
       localStorage.setItem('coralink_favorites', JSON.stringify(favorites));
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (_) {}
   }, [favorites]);
 
   // Toggle favorite
@@ -301,14 +288,10 @@ export default function App() {
     try {
       localStorage.setItem('coralink_custom_products', JSON.stringify(cleanUpdated));
       localStorage.setItem('coralink_custom_products_backup', JSON.stringify(cleanUpdated));
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (_) {}
 
     // 1. Instantly push to Firebase Firestore in the cloud and purge deleted IDs
-    syncAllProductsToFirestore(cleanUpdated, deletedProductId).catch((err) =>
-      console.warn('Firestore sync background notice:', err)
-    );
+    syncAllProductsToFirestore(cleanUpdated, deletedProductId).catch(() => {});
 
     // 2. Also send to local backend if available
     fetch('/api/products', {
@@ -324,7 +307,7 @@ export default function App() {
           localStorage.setItem('coralink_custom_products', JSON.stringify(cleanBackend));
         }
       })
-      .catch((e) => console.log('Backend sync skipped:', e));
+      .catch(() => {});
   };
 
   // Manual recovery of user customizations from browser caches & history
@@ -334,9 +317,7 @@ export default function App() {
     try {
       localStorage.setItem('coralink_custom_products', JSON.stringify(recoveredProducts));
       localStorage.setItem('coralink_custom_products_backup', JSON.stringify(recoveredProducts));
-    } catch (e) {
-      console.error(e);
-    }
+    } catch (_) {}
     return customCount;
   };
 
@@ -677,6 +658,7 @@ export default function App() {
           onOpenFavorites={() => setIsFavoritesOpen(true)}
           onOpenAdmin={handleOpenAdmin}
           onOpenPWAStatus={() => setIsPWAStatusOpen(true)}
+          onOpenPrivacyPolicy={() => setIsPrivacyPolicyOpen(true)}
           isAdmin={isAdminUnlocked}
           onGoHome={() => {
             setSelectedCategory('Todo');
@@ -870,7 +852,12 @@ export default function App() {
       </main>
 
       {/* Brand Logo, Title, Slogan and Description at the End of Page */}
-      <Footer onOpenAdmin={handleOpenAdmin} logoUrl={storeLogo} onForceSync={handleManualSyncCatalog} />
+      <Footer
+        onOpenAdmin={handleOpenAdmin}
+        logoUrl={storeLogo}
+        onForceSync={handleManualSyncCatalog}
+        onOpenPrivacyPolicy={() => setIsPrivacyPolicyOpen(true)}
+      />
 
       {/* FIXED BOTTOM NAVIGATION BAR: Inicio, Buscar, Favoritos, Pedido */}
       <BottomNavBar
@@ -944,6 +931,11 @@ export default function App() {
         isIOS={isIOS}
         onInstall={install}
         onRefreshSW={checkSW}
+      />
+
+      <PrivacyPolicyModal
+        isOpen={isPrivacyPolicyOpen}
+        onClose={() => setIsPrivacyPolicyOpen(false)}
       />
 
       {/* PWA Update Banner - Floating alert when Vercel/GitHub has a new version */}

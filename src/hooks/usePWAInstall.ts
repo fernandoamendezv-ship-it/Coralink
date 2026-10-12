@@ -73,8 +73,7 @@ export function usePWAInstall() {
       }
 
       return status;
-    } catch (e) {
-      console.error('Error checking Service Worker:', e);
+    } catch (_) {
       const status: SWStatus = {
         supported: true,
         registered: false,
@@ -239,7 +238,7 @@ export function usePWAInstall() {
       setIsInstalling(false);
       return { success: false, outcome: 'dismissed' };
     } catch (err: any) {
-      console.error('[PWA] Error calling prompt():', err);
+      console.debug('[PWA] prompt error notice:', err);
       setIsInstalling(false);
       return { success: false, reason: err?.message || 'prompt-error' };
     }

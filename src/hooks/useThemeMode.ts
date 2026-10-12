@@ -10,9 +10,7 @@ export function useThemeMode() {
         if (stored === 'light' || stored === 'dark') {
           return stored;
         }
-      } catch (e) {
-        console.error('Error reading theme from storage:', e);
-      }
+      } catch (_) {}
     }
     // New users always open the app in light mode
     return 'light';
@@ -27,9 +25,7 @@ export function useThemeMode() {
     }
     try {
       localStorage.setItem('coralink_theme', theme);
-    } catch (e) {
-      console.error('Error writing theme to storage:', e);
-    }
+    } catch (_) {}
   }, [theme]);
 
   const toggleTheme = () => {
