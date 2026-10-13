@@ -1,6 +1,6 @@
 import React from 'react';
 import { CoralinkLogo } from './CoralinkLogo';
-import { MapPin, Sparkles, MessageCircle, Facebook, Heart, ChevronsUp } from 'lucide-react';
+import { MapPin, Sparkles, MessageCircle, Facebook, Heart } from 'lucide-react';
 
 interface FooterProps {
   onOpenAdmin: () => void;
@@ -17,9 +17,6 @@ export const Footer: React.FC<FooterProps> = ({
   facebookUrl = 'https://facebook.com/coralinkcornisland',
   googleMapsUrl = 'https://maps.google.com/?q=Corn+Island,+Costa+Caribe+Sur,+Nicaragua',
 }) => {
-  const handleScrollToTop = () => {
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
 
   return (
     <footer className="bg-[#0B2545] text-white border-t border-slate-800 pt-10 pb-20 px-4 sm:px-6">
@@ -52,18 +49,19 @@ export const Footer: React.FC<FooterProps> = ({
           </div>
         </div>
 
-        {/* Botones de Facebook y WhatsApp alineados a la par, solo iconos sin texto */}
-        <div className="flex items-center justify-center gap-3.5 pt-2">
+        {/* Botones de WhatsApp y Facebook alineados a la par con sus textos */}
+        <div className="flex flex-wrap items-center justify-center gap-3.5 pt-2">
           {/* Botón WhatsApp */}
           <a
             href="https://wa.me/50582045433"
             target="_blank"
             rel="noopener noreferrer"
-            className="w-12 h-12 rounded-2xl bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/40 flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-md group cursor-pointer"
+            className="px-5 py-2.5 rounded-2xl bg-emerald-600/20 hover:bg-emerald-600/35 text-emerald-400 border border-emerald-500/40 flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-md group cursor-pointer"
             title="Escribir por WhatsApp a Coralink (+505 8204 5433)"
-            aria-label="WhatsApp Coralink"
+            aria-label="WhatsApp"
           >
-            <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
+            <MessageCircle className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            <span className="text-sm font-bold text-white tracking-wide">WhatsApp</span>
           </a>
 
           {/* Botón Facebook */}
@@ -71,30 +69,31 @@ export const Footer: React.FC<FooterProps> = ({
             href={facebookUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="w-12 h-12 rounded-2xl bg-[#1877F2]/25 hover:bg-[#1877F2]/40 text-blue-400 border border-[#1877F2]/40 flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-md group cursor-pointer"
+            className="px-5 py-2.5 rounded-2xl bg-[#1877F2]/20 hover:bg-[#1877F2]/35 text-blue-400 border border-[#1877F2]/40 flex items-center justify-center gap-2 transition-all hover:scale-105 active:scale-95 shadow-md group cursor-pointer"
             title="Página de Facebook de Coralink"
-            aria-label="Facebook Coralink"
+            aria-label="Facebook"
           >
-            <Facebook className="w-6 h-6 group-hover:scale-110 transition-transform" />
+            <Facebook className="w-5 h-5 group-hover:scale-110 transition-transform" />
+            <span className="text-sm font-bold text-white tracking-wide">Facebook</span>
           </a>
         </div>
 
-        {/* Ubicación Google Maps, Panel de Administrador y Política de Privacidad */}
-        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs pt-1">
-          {/* Link de ubicación a Google Maps con icono MapPin */}
+        {/* Debajo de los botones: Corn Island, Costa Caribe Sur como enlace a Google Maps */}
+        <div className="pt-1">
           <a
             href={googleMapsUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white transition-colors cursor-pointer group"
+            className="inline-flex items-center gap-2 text-xs sm:text-sm text-slate-300 hover:text-white underline decoration-slate-600 hover:decoration-[#1BA7D9] transition-colors cursor-pointer group font-medium"
             title="Abrir ubicación en Google Maps"
           >
-            <MapPin className="w-3.5 h-3.5 text-[#1BA7D9] group-hover:scale-110 transition-transform" />
+            <MapPin className="w-4 h-4 text-[#1BA7D9] group-hover:scale-110 transition-transform" />
             <span>Corn Island, Costa Caribe Sur</span>
           </a>
+        </div>
 
-          <span className="text-slate-600">•</span>
-
+        {/* Debajo de la ubicación: Panel de Administrador y Política de Privacidad */}
+        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs pt-0.5">
           <button
             onClick={onOpenAdmin}
             className="text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white cursor-pointer transition-colors"
@@ -114,21 +113,6 @@ export const Footer: React.FC<FooterProps> = ({
               </button>
             </>
           )}
-        </div>
-
-        {/* Botón con doble flecha para regresar al inicio de la página */}
-        <div className="pt-2">
-          <button
-            type="button"
-            onClick={handleScrollToTop}
-            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-bold border border-white/15 transition-all shadow-md cursor-pointer group"
-            title="Regresar al inicio de la página"
-            aria-label="Regresar al inicio de la página"
-          >
-            <ChevronsUp className="w-4 h-4 text-[#1BA7D9] group-hover:-translate-y-0.5 transition-transform" />
-            <span>Volver al inicio</span>
-            <ChevronsUp className="w-4 h-4 text-[#FF6B35] group-hover:-translate-y-0.5 transition-transform" />
-          </button>
         </div>
 
         {/* Copyright & "Hecho con ❤️ para el isleño" as requested */}

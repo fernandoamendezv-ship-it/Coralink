@@ -17,6 +17,7 @@ import { FavoritesModal } from './components/FavoritesModal';
 import { AdminModal } from './components/AdminModal';
 import { PWAStatusModal } from './components/PWAStatusModal';
 import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
+import { SearchResultsModal } from './components/SearchResultsModal';
 import { BottomNavBar } from './components/BottomNavBar';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { Footer } from './components/Footer';
@@ -181,11 +182,16 @@ export default function App() {
 
   // Whenever the user searches or types in the search bar, maintain scroll at top
   const handleSearchChange = (query: string) => {
-    if (query.trim() && window.scrollY > 40) {
-      window.scrollTo({ top: 0, behavior: 'instant' });
-    }
+    window.scrollTo({ top: 0, behavior: 'instant' });
     setSearchQuery(query);
   };
+
+  // Keep scroll at top whenever searching so DOM shrinkage never sends user to the bottom
+  useEffect(() => {
+    if (searchQuery.trim()) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+  }, [searchQuery]);
 
   // Active Bottom Navigation Tab
   const [activeBottomTab, setActiveBottomTab] = useState<'inicio' | 'buscar' | 'favoritos' | 'pedido'>('inicio');
@@ -198,6 +204,27 @@ export default function App() {
   const [isPWAStatusOpen, setIsPWAStatusOpen] = useState(false);
   const [isPrivacyPolicyOpen, setIsPrivacyPolicyOpen] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
+  const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
+  // Search Modal handlers: Open dedicated modal or return home to the very top
+  const handleOpenSearchModal = (query?: string) => {
+    if (query !== undefined) {
+      setSearchQuery(query);
+    }
+    setIsSearchModalOpen(true);
+  };
+
+  const handleReturnHomeFromSearch = () => {
+    setIsSearchModalOpen(false);
+    setSearchQuery('');
+    setSelectedCategory('Todo');
+    setSelectedSubCategory('Todas');
+    setActiveBottomTab('inicio');
+    window.scrollTo({ top: 0, behavior: 'instant' });
+    setTimeout(() => {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }, 50);
+  };
 
   // Admin session lock handlers: Always lock on open/close and closing tab
   const handleOpenAdmin = () => {
@@ -488,6 +515,26 @@ const removeAccents = (str: string = ''): string => {
     .trim();
 };
 
+  // Dedicated Search Results for Modal: Matches across entire catalog (all categories)
+  const searchResultProducts = useMemo(() => {
+    const cleanQuery = removeAccents(searchQuery);
+    const searchTerms = cleanQuery ? cleanQuery.split(/\s+/).filter(Boolean) : [];
+    if (searchTerms.length === 0) return [];
+
+    return products.filter((p) => {
+      const titleNorm = removeAccents(p.title);
+      const subNorm = removeAccents(p.subCategory);
+      const mainNorm = removeAccents(p.mainCategory);
+      const descNorm = removeAccents(p.description);
+      const badgeNorm = removeAccents(p.badge || '');
+      const optionsNorm = p.availableOptions
+        ? p.availableOptions.map((o) => removeAccents(o.label) + ' ' + o.choices.map((c) => removeAccents(c)).join(' ')).join(' ')
+        : '';
+      const fullText = `${titleNorm} ${subNorm} ${mainNorm} ${descNorm} ${badgeNorm} ${optionsNorm}`;
+      return searchTerms.every((term) => fullText.includes(term));
+    });
+  }, [products, searchQuery]);
+
   // Filtered & Sorted Products: In 'Todo', show exclusively 'Personalizados' sorted A-Z by subCategory
   const filteredProducts = useMemo(() => {
     const cleanQuery = removeAccents(searchQuery);
@@ -653,11 +700,11 @@ const removeAccents = (str: string = ''): string => {
       setSelectedCategory('Todo');
       setSelectedSubCategory('Todas');
       setSearchQuery('');
-      window.scrollTo({ top: 0, behavior: 'smooth' });
-    } else if (tab === 'buscar') {
+      setIsSearchModalOpen(false);
       window.scrollTo({ top: 0, behavior: 'instant' });
-      const searchInput = document.getElementById('main-search-input');
-      searchInput?.focus();
+    } else if (tab === 'buscar') {
+      setIsSearchModalOpen(true);
+      window.scrollTo({ top: 0, behavior: 'instant' });
     } else if (tab === 'favoritos') {
       setIsFavoritesOpen(true);
     } else if (tab === 'pedido') {
@@ -718,6 +765,7 @@ const removeAccents = (str: string = ''): string => {
         <Header
           searchQuery={searchQuery}
           onSearchChange={handleSearchChange}
+          onExecuteSearch={handleOpenSearchModal}
           cartCount={totalCartUnits}
           favoritesCount={favorites.length}
           onOpenCart={() => setIsCartOpen(true)}
@@ -954,6 +1002,22 @@ const removeAccents = (str: string = ''): string => {
         onAddToCart={handleAddToCart}
         onDirectWhatsApp={handleDirectWhatsApp}
         onRateProduct={handleRateProduct}
+      />
+
+      {/* Dedicated Search Results Modal (opens on keyboard lupita / Enter / Search button) */}
+      <SearchResultsModal
+        isOpen={isSearchModalOpen}
+        searchQuery={searchQuery}
+        onSearchChange={handleSearchChange}
+        onExecuteSearch={handleOpenSearchModal}
+        products={searchResultProducts}
+        onClose={handleReturnHomeFromSearch}
+        onReturnToHome={handleReturnHomeFromSearch}
+        onOpenDetail={setDetailProduct}
+        onAddToCart={(p, qty, opts, note) => handleAddToCart(p, qty || 1, opts, note)}
+        onDirectWhatsApp={(p, opts, note) => handleDirectWhatsApp(p, 1, opts, note)}
+        favorites={favorites}
+        onToggleFavorite={handleToggleFavorite}
       />
 
       <QuoteDrawer

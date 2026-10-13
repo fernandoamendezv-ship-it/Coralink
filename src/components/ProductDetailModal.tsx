@@ -93,7 +93,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   ];
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-[#0B2545]/70 dark:bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-3 sm:p-4 bg-[#0B2545]/70 dark:bg-black/80 backdrop-blur-md animate-in fade-in duration-200">
       <div 
         className="relative w-full max-w-3xl overflow-hidden rounded-3xl bg-white dark:bg-slate-900 shadow-2xl border border-slate-100 dark:border-slate-800 text-slate-800 dark:text-slate-100 flex flex-col md:flex-row max-h-[92vh]"
         role="dialog"

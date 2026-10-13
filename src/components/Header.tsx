@@ -24,6 +24,7 @@ import { PWAInstallButton } from './PWAInstallButton';
 interface HeaderProps {
   searchQuery: string;
   onSearchChange: (q: string) => void;
+  onExecuteSearch?: (q?: string) => void;
   cartCount: number;
   favoritesCount: number;
   onOpenCart: () => void;
@@ -51,6 +52,7 @@ declare global {
 export const Header: React.FC<HeaderProps> = ({
   searchQuery,
   onSearchChange,
+  onExecuteSearch,
   cartCount,
   favoritesCount,
   onOpenCart,
@@ -168,8 +170,8 @@ export const Header: React.FC<HeaderProps> = ({
           if (currentResult.isFinal) {
             showFeedbackMessage(`Buscando: "${transcript}"`, 2000);
             setIsListening(false);
-            const catalogEl = document.getElementById('catalog-section');
-            catalogEl?.scrollIntoView({ behavior: 'smooth' });
+            window.scrollTo({ top: 0, behavior: 'instant' });
+            onExecuteSearch?.(transcript);
           }
         }
       };
@@ -549,21 +551,40 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Second Row: Full Width Rounded Search Bar with Voice Recognition Button */}
         <div className="mt-2.5 relative">
-          <div className="relative flex items-center">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (searchQuery.trim()) {
+                window.scrollTo({ top: 0, behavior: 'instant' });
+                onExecuteSearch?.(searchQuery);
+              }
+            }}
+            action="#"
+            className="relative flex items-center w-full"
+          >
             <input
               id="main-search-input"
-              type="text"
+              type="search"
+              enterKeyHint="search"
+              autoComplete="off"
+              autoCorrect="off"
+              autoCapitalize="none"
               value={searchQuery}
               onChange={(e) => onSearchChange(e.target.value)}
               onFocus={() => {
-                if (window.scrollY > 40) {
-                  window.scrollTo({ top: 0, behavior: 'instant' });
-                }
+                window.scrollTo({ top: 0, behavior: 'instant' });
               }}
               placeholder="Buscar productos en Coralink..."
               className="w-full pl-10 pr-18 sm:pr-20 py-2 sm:py-2.5 rounded-full bg-white dark:bg-slate-800 text-slate-800 dark:text-white placeholder-slate-400 dark:placeholder-slate-400 text-xs sm:text-sm font-medium border-0 focus:ring-2 focus:ring-[#1BA7D9] shadow-inner outline-none transition-colors"
             />
-            <Search className="w-4 h-4 text-slate-400 absolute left-3.5 pointer-events-none" />
+            <button
+              type="submit"
+              className="absolute left-3 p-1 rounded-full text-slate-400 hover:text-[#1BA7D9] transition-colors cursor-pointer"
+              title="Buscar con lupita"
+              aria-label="Buscar producto"
+            >
+              <Search className="w-4 h-4" />
+            </button>
 
             {/* Actions on the right side of the search input: Clear + Voice Search Button */}
             <div className="absolute right-2 flex items-center gap-1">
@@ -603,7 +624,7 @@ export const Header: React.FC<HeaderProps> = ({
                 )}
               </button>
             </div>
-          </div>
+          </form>
 
           {/* Voice Search Status Overlay / Feedback Badge */}
           {speechFeedback && (
