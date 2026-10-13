@@ -1,22 +1,26 @@
 import React from 'react';
 import { CoralinkLogo } from './CoralinkLogo';
-import { MapPin, Sparkles, MessageCircle, RefreshCw, Facebook, Heart } from 'lucide-react';
+import { MapPin, Sparkles, MessageCircle, Facebook, Heart, ChevronsUp } from 'lucide-react';
 
 interface FooterProps {
   onOpenAdmin: () => void;
   logoUrl?: string;
-  onForceSync?: () => void;
   onOpenPrivacyPolicy?: () => void;
   facebookUrl?: string;
+  googleMapsUrl?: string;
 }
 
 export const Footer: React.FC<FooterProps> = ({
   onOpenAdmin,
   logoUrl,
-  onForceSync,
   onOpenPrivacyPolicy,
   facebookUrl = 'https://facebook.com/coralinkcornisland',
+  googleMapsUrl = 'https://maps.google.com/?q=Corn+Island,+Costa+Caribe+Sur,+Nicaragua',
 }) => {
+  const handleScrollToTop = () => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   return (
     <footer className="bg-[#0B2545] text-white border-t border-slate-800 pt-10 pb-20 px-4 sm:px-6">
       <div className="max-w-4xl mx-auto flex flex-col items-center text-center space-y-5">
@@ -35,7 +39,7 @@ export const Footer: React.FC<FooterProps> = ({
           </p>
         </div>
 
-        {/* Brand Description (Updated as requested) */}
+        {/* Brand Description */}
         <p className="text-xs sm:text-sm text-slate-300 max-w-lg leading-relaxed">
           Tienda y catálogo de regalos únicos en Corn Island. Personalizamos fotoregalos en cerámica y piedra roca, tazas térmicas y mágicas, textiles, papelería creativa para tus celebraciones y detalles encapsulados en resina epóxica.
         </p>
@@ -48,46 +52,63 @@ export const Footer: React.FC<FooterProps> = ({
           </div>
         </div>
 
-        {/* Contact WhatsApp, Facebook, Location, Admin & Sync */}
-        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs pt-2">
+        {/* Botones de Facebook y WhatsApp alineados a la par, solo iconos sin texto */}
+        <div className="flex items-center justify-center gap-3.5 pt-2">
+          {/* Botón WhatsApp */}
           <a
             href="https://wa.me/50582045433"
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-emerald-600/20 hover:bg-emerald-600/30 text-emerald-300 border border-emerald-500/30 font-bold transition-all shadow-2xs"
-            title="Escribir por WhatsApp a Coralink"
+            className="w-12 h-12 rounded-2xl bg-emerald-600/25 hover:bg-emerald-600/40 text-emerald-400 border border-emerald-500/40 flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-md group cursor-pointer"
+            title="Escribir por WhatsApp a Coralink (+505 8204 5433)"
+            aria-label="WhatsApp Coralink"
           >
-            <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
-            <span>WhatsApp: +505 8204 5433</span>
+            <MessageCircle className="w-6 h-6 group-hover:scale-110 transition-transform" />
           </a>
 
+          {/* Botón Facebook */}
           <a
             href={facebookUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1877F2]/20 hover:bg-[#1877F2]/35 text-blue-200 border border-[#1877F2]/40 font-bold transition-all shadow-2xs"
+            className="w-12 h-12 rounded-2xl bg-[#1877F2]/25 hover:bg-[#1877F2]/40 text-blue-400 border border-[#1877F2]/40 flex items-center justify-center transition-all hover:scale-110 active:scale-95 shadow-md group cursor-pointer"
             title="Página de Facebook de Coralink"
+            aria-label="Facebook Coralink"
           >
-            <Facebook className="w-3.5 h-3.5 text-[#1877F2]" />
-            <span>Facebook Coralink</span>
+            <Facebook className="w-6 h-6 group-hover:scale-110 transition-transform" />
           </a>
-          <span className="flex items-center gap-1 text-slate-400">
-            <MapPin className="w-3.5 h-3.5 text-[#1BA7D9]" /> Corn Island, Costa Caribe Sur
-          </span>
+        </div>
+
+        {/* Ubicación Google Maps, Panel de Administrador y Política de Privacidad */}
+        <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs pt-1">
+          {/* Link de ubicación a Google Maps con icono MapPin */}
+          <a
+            href={googleMapsUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white transition-colors cursor-pointer group"
+            title="Abrir ubicación en Google Maps"
+          >
+            <MapPin className="w-3.5 h-3.5 text-[#1BA7D9] group-hover:scale-110 transition-transform" />
+            <span>Corn Island, Costa Caribe Sur</span>
+          </a>
+
           <span className="text-slate-600">•</span>
+
           <button
             onClick={onOpenAdmin}
-            className="text-slate-400 hover:text-white underline cursor-pointer"
+            className="text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white cursor-pointer transition-colors"
           >
             Panel de Administrador
           </button>
+
           {onOpenPrivacyPolicy && (
             <>
               <span className="text-slate-600">•</span>
               <button
                 type="button"
                 onClick={onOpenPrivacyPolicy}
-                className="text-slate-400 hover:text-white underline cursor-pointer"
+                className="text-slate-400 hover:text-white underline decoration-slate-600 hover:decoration-white cursor-pointer transition-colors"
               >
                 Política de Privacidad
               </button>
@@ -95,19 +116,20 @@ export const Footer: React.FC<FooterProps> = ({
           )}
         </div>
 
-        {/* PROMINENT SYNC BADGE / BUTTON IN FOOTER */}
-        {onForceSync && (
-          <div className="pt-1">
-            <button
-              onClick={onForceSync}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-[#1BA7D9]/20 to-[#FF6B35]/20 hover:from-[#1BA7D9]/30 hover:to-[#FF6B35]/30 text-white border border-[#1BA7D9]/40 text-xs font-bold transition-all shadow-md cursor-pointer active:scale-95"
-              title="Actualizar catálogo y limpiar caché del navegador"
-            >
-              <RefreshCw className="w-4 h-4 text-[#1BA7D9]" />
-              <span>🔄 Sincronizar Catálogo (Refrescar Fotos)</span>
-            </button>
-          </div>
-        )}
+        {/* Botón con doble flecha para regresar al inicio de la página */}
+        <div className="pt-2">
+          <button
+            type="button"
+            onClick={handleScrollToTop}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-2xl bg-white/10 hover:bg-white/20 active:scale-95 text-white text-xs font-bold border border-white/15 transition-all shadow-md cursor-pointer group"
+            title="Regresar al inicio de la página"
+            aria-label="Regresar al inicio de la página"
+          >
+            <ChevronsUp className="w-4 h-4 text-[#1BA7D9] group-hover:-translate-y-0.5 transition-transform" />
+            <span>Volver al inicio</span>
+            <ChevronsUp className="w-4 h-4 text-[#FF6B35] group-hover:-translate-y-0.5 transition-transform" />
+          </button>
+        </div>
 
         {/* Copyright & "Hecho con ❤️ para el isleño" as requested */}
         <div className="pt-4 border-t border-slate-800/80 w-full text-[11px] text-slate-400 flex flex-col sm:flex-row items-center justify-between gap-2">

@@ -20,8 +20,9 @@ import { PrivacyPolicyModal } from './components/PrivacyPolicyModal';
 import { BottomNavBar } from './components/BottomNavBar';
 import { OfflineIndicator } from './components/OfflineIndicator';
 import { Footer } from './components/Footer';
-import { Search, Zap, Sparkles, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Zap, Sparkles, RefreshCw, ChevronLeft, ChevronRight, ChevronsUp } from 'lucide-react';
 import { useThemeMode } from './hooks/useThemeMode';
+import { getPrivacyConfig, PrivacyLegalConfig } from './utils/privacyConfig';
 import { CORALINK_LOGO_URL, isReferenceLogo } from './utils/logoConstants';
 import {
   scanAndRecoverCustomProducts,
@@ -148,6 +149,43 @@ export default function App() {
   const [selectedSubCategory, setSelectedSubCategory] = useState<string>('Todas');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'featured' | 'price-asc' | 'price-desc' | 'sales' | 'rating'>('featured');
+
+  // Privacy & Contact Configuration (Dynamic link to Google Maps, Facebook, etc.)
+  const [privacyConfig, setPrivacyConfig] = useState<PrivacyLegalConfig>(() => getPrivacyConfig());
+
+  // Show Double Arrow Scroll to Top button
+  const [showScrollTop, setShowScrollTop] = useState(false);
+
+  useEffect(() => {
+    const handlePrivacyUpdated = (e: any) => {
+      if (e?.detail) setPrivacyConfig(e.detail);
+      else setPrivacyConfig(getPrivacyConfig());
+    };
+    window.addEventListener('coralink_privacy_updated', handlePrivacyUpdated);
+    return () => window.removeEventListener('coralink_privacy_updated', handlePrivacyUpdated);
+  }, []);
+
+  // Listen to window scroll to show double-arrow button when user scrolls down or nears bottom
+  useEffect(() => {
+    const checkScroll = () => {
+      const scrolled = window.scrollY || document.documentElement.scrollTop;
+      const windowHeight = window.innerHeight;
+      const docHeight = document.documentElement.scrollHeight;
+      const isNearBottom = scrolled + windowHeight >= docHeight - 350;
+      setShowScrollTop(scrolled > 280 || isNearBottom);
+    };
+
+    window.addEventListener('scroll', checkScroll, { passive: true });
+    return () => window.removeEventListener('scroll', checkScroll);
+  }, []);
+
+  // Whenever the user searches or types in the search bar, maintain scroll at top
+  const handleSearchChange = (query: string) => {
+    if (query.trim() && window.scrollY > 40) {
+      window.scrollTo({ top: 0, behavior: 'instant' });
+    }
+    setSearchQuery(query);
+  };
 
   // Active Bottom Navigation Tab
   const [activeBottomTab, setActiveBottomTab] = useState<'inicio' | 'buscar' | 'favoritos' | 'pedido'>('inicio');
@@ -441,10 +479,47 @@ export default function App() {
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
   }, [products, selectedCategory]);
 
+// Helper to remove accents/diacritics and normalize text for search
+const removeAccents = (str: string = ''): string => {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .trim();
+};
+
   // Filtered & Sorted Products: In 'Todo', show exclusively 'Personalizados' sorted A-Z by subCategory
   const filteredProducts = useMemo(() => {
+    const cleanQuery = removeAccents(searchQuery);
+    const searchTerms = cleanQuery ? cleanQuery.split(/\s+/).filter(Boolean) : [];
+
     return products
       .filter((p) => {
+        // Search query (Accent-insensitive, multi-term, matching across title, subCategory, mainCategory, description, and tags)
+        if (searchTerms.length > 0) {
+          const titleNorm = removeAccents(p.title);
+          const subNorm = removeAccents(p.subCategory);
+          const mainNorm = removeAccents(p.mainCategory);
+          const descNorm = removeAccents(p.description);
+          const badgeNorm = removeAccents(p.badge || '');
+          const optionsNorm = p.availableOptions
+            ? p.availableOptions.map((o) => removeAccents(o.label) + ' ' + o.choices.map((c) => removeAccents(c)).join(' ')).join(' ')
+            : '';
+          const fullText = `${titleNorm} ${subNorm} ${mainNorm} ${descNorm} ${badgeNorm} ${optionsNorm}`;
+
+          const matchesSearch = searchTerms.every((term) => fullText.includes(term));
+          if (!matchesSearch) return false;
+
+          // If the user explicitly picked a specific category (not 'Todo'), respect it
+          if (selectedCategory !== 'Todo' && p.mainCategory !== selectedCategory) {
+            return false;
+          }
+          if (selectedSubCategory !== 'Todas' && p.subCategory !== selectedSubCategory) {
+            return false;
+          }
+          return true;
+        }
+
         // Main Category filter: When 'Todo' is active, show only 'Personalizados' products
         if (selectedCategory === 'Todo') {
           if (p.mainCategory !== 'Personalizados') {
@@ -456,15 +531,6 @@ export default function App() {
         // SubCategory filter
         if (selectedSubCategory !== 'Todas' && p.subCategory !== selectedSubCategory) {
           return false;
-        }
-        // Search query
-        if (searchQuery.trim()) {
-          const q = searchQuery.toLowerCase().trim();
-          const matchTitle = p.title.toLowerCase().includes(q);
-          const matchSub = p.subCategory.toLowerCase().includes(q);
-          const matchMain = p.mainCategory.toLowerCase().includes(q);
-          const matchDesc = p.description.toLowerCase().includes(q);
-          return matchTitle || matchSub || matchMain || matchDesc;
         }
         return true;
       })
@@ -589,9 +655,9 @@ export default function App() {
       setSearchQuery('');
       window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (tab === 'buscar') {
+      window.scrollTo({ top: 0, behavior: 'instant' });
       const searchInput = document.getElementById('main-search-input');
       searchInput?.focus();
-      window.scrollTo({ top: 0, behavior: 'smooth' });
     } else if (tab === 'favoritos') {
       setIsFavoritesOpen(true);
     } else if (tab === 'pedido') {
@@ -651,7 +717,7 @@ export default function App() {
       <div className="sticky top-0 z-40 shadow-xs">
         <Header
           searchQuery={searchQuery}
-          onSearchChange={setSearchQuery}
+          onSearchChange={handleSearchChange}
           cartCount={totalCartUnits}
           favoritesCount={favorites.length}
           onOpenCart={() => setIsCartOpen(true)}
@@ -855,9 +921,23 @@ export default function App() {
       <Footer
         onOpenAdmin={handleOpenAdmin}
         logoUrl={storeLogo}
-        onForceSync={handleManualSyncCatalog}
         onOpenPrivacyPolicy={() => setIsPrivacyPolicyOpen(true)}
+        facebookUrl={privacyConfig.facebookUrl}
+        googleMapsUrl={privacyConfig.googleMapsUrl}
       />
+
+      {/* Floating Double-Arrow Button to return to top when user scrolls down */}
+      {showScrollTop && (
+        <button
+          type="button"
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          className="fixed bottom-20 right-4 sm:bottom-24 sm:right-6 z-40 p-3 sm:p-3.5 rounded-2xl bg-[#0B2545] dark:bg-[#1BA7D9] text-white shadow-2xl hover:scale-110 active:scale-95 transition-all duration-300 border border-white/20 dark:border-white/10 flex items-center justify-center group cursor-pointer animate-in fade-in zoom-in-95"
+          title="Regresar al inicio (arriba)"
+          aria-label="Regresar al inicio de la página"
+        >
+          <ChevronsUp className="w-5 h-5 sm:w-6 sm:h-6 text-[#1BA7D9] dark:text-white group-hover:-translate-y-1 transition-transform" />
+        </button>
+      )}
 
       {/* FIXED BOTTOM NAVIGATION BAR: Inicio, Buscar, Favoritos, Pedido */}
       <BottomNavBar

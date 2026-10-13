@@ -9,6 +9,7 @@ export interface PrivacyLegalConfig {
   applicationName: string;
   deletionResponseHours: string;
   facebookUrl?: string;
+  googleMapsUrl?: string;
 }
 
 export const DEFAULT_PRIVACY_CONFIG: PrivacyLegalConfig = {
@@ -22,6 +23,7 @@ export const DEFAULT_PRIVACY_CONFIG: PrivacyLegalConfig = {
   applicationName: 'Coralink – Catálogo y Tienda de Arte & Personalización Caribeña',
   deletionResponseHours: '48 horas hábiles',
   facebookUrl: 'https://facebook.com/coralinkcornisland',
+  googleMapsUrl: 'https://maps.google.com/?q=Corn+Island,+Costa+Caribe+Sur,+Nicaragua',
 };
 
 const PRIVACY_STORAGE_KEY = 'coralink_privacy_config';

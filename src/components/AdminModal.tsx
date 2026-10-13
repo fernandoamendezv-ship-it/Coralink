@@ -1576,6 +1576,26 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         </div>
                       </div>
 
+                      {/* Google Maps Location URL */}
+                      <div className="sm:col-span-2">
+                        <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                          Enlace de Ubicación en Google Maps (Pie de Página) *
+                        </label>
+                        <div className="relative flex items-center">
+                          <MapPin className="w-4 h-4 text-[#1BA7D9] absolute left-3" />
+                          <input
+                            type="url"
+                            value={privacyForm.googleMapsUrl || ''}
+                            onChange={(e) => setPrivacyForm({ ...privacyForm, googleMapsUrl: e.target.value })}
+                            placeholder="https://maps.google.com/?q=Corn+Island,+Costa+Caribe+Sur,+Nicaragua"
+                            className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] focus:ring-1 focus:ring-[#1BA7D9] outline-none font-mono"
+                          />
+                        </div>
+                        <span className="text-[10px] text-slate-400 mt-0.5 block">
+                          Al hacer clic en «Corn Island, Costa Caribe Sur» en el pie de página, abrirá esta ubicación en Google Maps.
+                        </span>
+                      </div>
+
                       {/* Policy Version & Last Updated */}
                       <div>
                         <label className="text-xs font-bold text-slate-700 dark:text-slate-300 block mb-1">
