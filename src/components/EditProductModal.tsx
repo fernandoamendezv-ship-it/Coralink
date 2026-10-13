@@ -646,97 +646,12 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                     </span>
                   </div>
 
-                  {/* Upload Controls */}
-                  <div className="sm:col-span-2 space-y-2.5">
-                    {/* Method 1: File Upload */}
-                    <div>
-                      <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                        1. Cargar foto desde tu celular o computadora:
-                      </span>
-                      <input
-                        type="file"
-                        ref={fileInputRef}
-                        accept="image/*"
-                        onChange={handleFileUpload}
-                        className="hidden"
-                      />
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                        <button
-                          type="button"
-                          onClick={handleOpenPostimages}
-                          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-sky-600 to-[#1BA7D9] hover:from-sky-700 hover:to-[#158db8] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
-                          title="Abrir tu galería Postimages (https://postimg.cc/gallery/zJjp92t) para cargar la foto"
-                        >
-                          <ExternalLink className="w-4 h-4 text-white" />
-                          <span>1. Subir a mi Galería Postimages</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={handlePasteFromClipboard}
-                          className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
-                          title="Pegar el enlace directo que copiaste de Postimages y colocarlo en el Punto 2"
-                        >
-                          <Copy className="w-4 h-4 text-white" />
-                          <span>2. Pegar Enlace Copiado</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setShowGalleryPicker(true)}
-                          className="w-full py-2.5 px-3 rounded-xl bg-[#0B2545] hover:bg-[#144272] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
-                          title="Elegir foto directamente de tu galería oficial (https://postimg.cc/gallery/zJjp92t)"
-                        >
-                          <Sparkles className="w-4 h-4 text-[#1BA7D9]" />
-                          <span>Elegir de mi Galería (zJjp92t)</span>
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => fileInputRef.current?.click()}
-                          disabled={isUploadingImage}
-                          className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#ff8555] hover:from-[#e85a26] hover:to-[#FF6B35] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
-                          title="Cargar foto desde tu celular o PC directamente al servidor"
-                        >
-                          {isUploadingImage ? (
-                            <Loader2 className="w-4 h-4 text-white animate-spin" />
-                          ) : (
-                            <Upload className="w-4 h-4 text-white" />
-                          )}
-                          <span>
-                            {isUploadingImage
-                              ? 'Guardando foto...'
-                              : 'Subir Foto desde Móvil o PC'}
-                          </span>
-                        </button>
-                      </div>
-
-                      <div className="mt-1.5 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
-                        <span>Galería oficial: <strong className="text-[#1BA7D9]">postimg.cc/gallery/zJjp92t</strong></span>
-                        <a
-                          href={POSTIMAGES_GALLERY_URL}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-[#FF6B35] hover:underline flex items-center gap-0.5 font-bold"
-                        >
-                          <span>Ver galería</span>
-                          <ExternalLink className="w-2.5 h-2.5" />
-                        </a>
-                      </div>
-
-                      {uploadSuccessMsg && (
-                        <div className="mt-2 p-2.5 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 animate-in fade-in">
-                          <Check className="w-4 h-4 text-emerald-500 shrink-0" />
-                          <span>{uploadSuccessMsg}</span>
-                        </div>
-                      )}
-                    </div>
-
-                    {/* Method 2: Direct URL */}
+                  {/* Manual URL Link Input */}
+                  <div className="sm:col-span-2 space-y-2">
                     <div>
                       <div className="flex items-center justify-between mb-1">
                         <span className="text-[11px] font-bold text-slate-700 dark:text-slate-200">
-                          2. Enlace Directo en la Nube (Punto 2 - Se autocompleta con enlace https://i.postimg.cc/...):
+                          Enlace / URL de la imagen en la nube:
                         </span>
                         {image && (
                           <button
@@ -817,7 +732,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                             <span>Ruta local de tu ordenador detectada («C:\...»)</span>
                           </div>
                           <p className="text-[11px] font-normal leading-relaxed">
-                            Los navegadores no pueden abrir rutas de carpetas de tu PC directamente por privacidad. Para usar esta foto, presiona el botón arriba <strong>«Seleccionar Foto / Archivo de mi Ordenador»</strong> y el sistema la cargará automáticamente a la tienda.
+                            Los navegadores no pueden abrir rutas de carpetas de tu PC directamente por privacidad. Para usar esta foto, pega el enlace directo en la nube (ejemplo: https://i.postimg.cc/...).
                           </p>
                         </div>
                       )}

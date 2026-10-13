@@ -40,6 +40,7 @@ import {
   MapPin,
   Facebook,
   Share2,
+  ChevronDown,
 } from 'lucide-react';
 import { CoralinkLogo } from './CoralinkLogo';
 import { EditProductModal } from './EditProductModal';
@@ -235,7 +236,19 @@ export const AdminModal: React.FC<AdminModalProps> = ({
 
   const [copiedJson, setCopiedJson] = useState(false);
   const [importSuccessMsg, setImportSuccessMsg] = useState<string | null>(null);
-  const [showSyncBanner, setShowSyncBanner] = useState(true);
+  const [isJsonMenuOpen, setIsJsonMenuOpen] = useState(false);
+  const jsonMenuRef = useRef<HTMLDivElement | null>(null);
+  const [showSyncInfoModal, setShowSyncInfoModal] = useState(false);
+
+  useEffect(() => {
+    const handleOutsideClick = (e: MouseEvent) => {
+      if (jsonMenuRef.current && !jsonMenuRef.current.contains(e.target as Node)) {
+        setIsJsonMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleOutsideClick);
+    return () => document.removeEventListener('mousedown', handleOutsideClick);
+  }, []);
 
   const handleExportJson = () => {
     try {
@@ -608,6 +621,204 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       }
       return (a.subCategory || '').localeCompare(b.subCategory || '', 'es', { sensitivity: 'base' });
     });
+
+  const renderTabsBar = (isInsideProductScroll = false) => (
+    <div
+      className={`px-3 sm:px-4 pt-3 pb-2 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2.5 ${
+        isInsideProductScroll ? '' : 'shrink-0'
+      }`}
+    >
+      <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto">
+        <button
+          type="button"
+          onClick={() => setActiveTab('products')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+            activeTab === 'products'
+              ? 'bg-[#0B2545] dark:bg-[#1BA7D9] text-white shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+          }`}
+        >
+          <Package className="w-4 h-4" />
+          <span>Productos y Precios ({localProducts.length})</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('logo')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+            activeTab === 'logo'
+              ? 'bg-[#0B2545] dark:bg-[#1BA7D9] text-white shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+          }`}
+        >
+          <ImageIcon className="w-4 h-4" />
+          <span>Logotipo</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('privacy')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+            activeTab === 'privacy'
+              ? 'bg-[#0B2545] dark:bg-[#1BA7D9] text-white shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+          }`}
+        >
+          <FileText className="w-4 h-4 text-emerald-500" />
+          <span>Datos y Privacidad</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('social')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+            activeTab === 'social'
+              ? 'bg-[#1877F2] text-white shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+          }`}
+        >
+          <Facebook className={`w-4 h-4 ${activeTab === 'social' ? 'text-white' : 'text-[#1877F2]'}`} />
+          <span>Kit Redes</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setActiveTab('security')}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0 ${
+            activeTab === 'security'
+              ? 'bg-[#0B2545] dark:bg-[#1BA7D9] text-white shadow-xs'
+              : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+          }`}
+        >
+          <Shield className="w-4 h-4 text-amber-500" />
+          <span>Seguridad</span>
+        </button>
+      </div>
+
+      {/* Action buttons inside product view */}
+      {isInsideProductScroll && (
+        <div className="flex flex-wrap items-center gap-1.5">
+          {/* Botón Nuevo */}
+          <button
+            type="button"
+            onClick={() => setShowAddForm(!showAddForm)}
+            className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+          >
+            <Plus className="w-3.5 h-3.5" />
+            <span>{showAddForm ? 'Cerrar' : 'Nuevo'}</span>
+          </button>
+
+          {/* Botón agrupador JSON */}
+          <div className="relative" ref={jsonMenuRef}>
+            <button
+              type="button"
+              onClick={() => setIsJsonMenuOpen(!isJsonMenuOpen)}
+              className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer shadow-xs"
+              title="Opciones de catálogo JSON y sincronización"
+            >
+              <FileText className="w-3.5 h-3.5 text-[#1BA7D9]" />
+              <span>JSON</span>
+              <ChevronDown className="w-3 h-3 text-slate-400" />
+            </button>
+
+            {isJsonMenuOpen && (
+              <div className="absolute right-0 top-full mt-1.5 w-64 bg-white dark:bg-slate-900 rounded-2xl shadow-2xl border border-slate-200 dark:border-slate-700 py-1.5 z-40 animate-in fade-in zoom-in-95">
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleExportJson();
+                    setIsJsonMenuOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <Download className="w-4 h-4 text-emerald-500 shrink-0" />
+                  <div>
+                    <div className="font-bold">Exportar JSON</div>
+                    <div className="text-[10px] text-slate-400">Descargar copia de seguridad en archivo .json</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    importFileRef.current?.click();
+                    setIsJsonMenuOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <Upload className="w-4 h-4 text-purple-500 shrink-0" />
+                  <div>
+                    <div className="font-bold">Importar JSON</div>
+                    <div className="text-[10px] text-slate-400">Cargar catálogo desde un archivo .json</div>
+                  </div>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    handleCopyCodeJson();
+                    setTimeout(() => setIsJsonMenuOpen(false), 900);
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                >
+                  {copiedJson ? (
+                    <Check className="w-4 h-4 text-emerald-500 shrink-0" />
+                  ) : (
+                    <Copy className="w-4 h-4 text-sky-500 shrink-0" />
+                  )}
+                  <div>
+                    <div className="font-bold">{copiedJson ? '¡Copiado!' : 'Copiar JSON de Código'}</div>
+                    <div className="text-[10px] text-slate-400">Copiar para actualizar initialProducts.ts en GitHub</div>
+                  </div>
+                </button>
+
+                <div className="my-1 border-t border-slate-100 dark:border-slate-800" />
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowSyncInfoModal(true);
+                    setIsJsonMenuOpen(false);
+                  }}
+                  className="w-full px-3 py-2 text-left text-xs font-medium hover:bg-slate-50 dark:hover:bg-slate-800 flex items-center gap-2.5 text-slate-700 dark:text-slate-200 transition-colors cursor-pointer"
+                >
+                  <RefreshCw className="w-4 h-4 text-[#FF6B35] shrink-0" />
+                  <div>
+                    <div className="font-bold text-[#FF6B35]">Sincronizar Cambios Internos</div>
+                    <div className="text-[10px] text-slate-400">Publicar en GitHub, Vercel y teléfonos</div>
+                  </div>
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Botón Guardar (modificado de "Guardar Todo" a "Guardar") */}
+          <button
+            type="button"
+            onClick={handleSaveAll}
+            className="px-3.5 py-1.5 rounded-xl bg-[#FF6B35] hover:bg-[#e85a26] text-white text-xs font-black flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+          >
+            <Save className="w-3.5 h-3.5" />
+            <span>Guardar</span>
+          </button>
+
+          {/* Restablecer de fábrica */}
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm('¿Deseas restablecer todos los productos a los valores y precios iniciales?')) {
+                onResetToDefaults();
+              }
+            }}
+            className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
+            title="Restablecer valores de fábrica"
+          >
+            <RotateCcw className="w-4 h-4" />
+          </button>
+        </div>
+      )}
+    </div>
+  );
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 bg-black/70 backdrop-blur-xs">
@@ -1002,153 +1213,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         ) : (
           /* MAIN ADMIN INTERFACE (UNLOCKED) */
           <div className="flex-1 flex flex-col min-h-0 bg-slate-50 dark:bg-slate-950">
-            {/* Top Navigation Tabs: Productos vs Logotipo vs Seguridad */}
-            <div className="px-4 pt-3 pb-2 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 shrink-0">
-              <div className="flex items-center gap-2 overflow-x-auto">
-                <button
-                  onClick={() => setActiveTab('products')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    activeTab === 'products'
-                      ? 'bg-[#0B2545] dark:bg-[#1BA7D9] text-white shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <Package className="w-4 h-4" />
-                  <span>Productos y Precios ({localProducts.length})</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('logo')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    activeTab === 'logo'
-                      ? 'bg-[#0B2545] dark:bg-[#1BA7D9] text-white shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <ImageIcon className="w-4 h-4" />
-                  <span>Logotipo de la Tienda</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('privacy')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    activeTab === 'privacy'
-                      ? 'bg-[#0B2545] dark:bg-[#1BA7D9] text-white shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <FileText className="w-4 h-4 text-emerald-500" />
-                  <span>Datos de Privacidad y Contacto</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('social')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    activeTab === 'social'
-                      ? 'bg-[#1877F2] text-white shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <Facebook className={`w-4 h-4 ${activeTab === 'social' ? 'text-white' : 'text-[#1877F2]'}`} />
-                  <span>Kit Facebook &amp; Redes</span>
-                </button>
-
-                <button
-                  onClick={() => setActiveTab('security')}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
-                    activeTab === 'security'
-                      ? 'bg-[#0B2545] dark:bg-[#1BA7D9] text-white shadow-xs'
-                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <Shield className="w-4 h-4 text-amber-500" />
-                  <span>Seguridad y Contraseña</span>
-                </button>
-              </div>
-
-              {/* Action buttons on the right */}
-              {activeTab === 'products' && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                  {onRecoverCustomProducts && (
-                    <button
-                      onClick={handleRecover}
-                      className="px-2.5 py-1.5 rounded-xl border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 hover:bg-amber-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                      title="Escanear y restaurar fotos modificadas previamente de la memoria local"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5 text-amber-500" />
-                      <span>Restaurar Mis Fotos</span>
-                    </button>
-                  )}
-
-                  {onForceSync && (
-                    <button
-                      onClick={onForceSync}
-                      disabled={isUpdating}
-                      className="px-2.5 py-1.5 rounded-xl border border-sky-300 dark:border-sky-700 bg-sky-50 dark:bg-sky-950/40 text-sky-700 dark:text-sky-300 hover:bg-sky-100 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                      title="Refrescar caché del teléfono y forzar sincronización"
-                    >
-                      <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? 'animate-spin' : ''}`} />
-                      <span className="hidden sm:inline">Sincronizar Teléfono</span>
-                    </button>
-                  )}
-
-                  <button
-                    onClick={handleExportJson}
-                    className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                    title="Descargar copia de seguridad en archivo .json"
-                  >
-                    <Download className="w-3.5 h-3.5 text-slate-500" />
-                    <span className="hidden sm:inline">Exportar JSON</span>
-                  </button>
-
-                  <button
-                    onClick={() => importFileRef.current?.click()}
-                    className="px-2.5 py-1.5 rounded-xl border border-purple-200 dark:border-purple-800 bg-purple-50 dark:bg-purple-950/40 hover:bg-purple-100 text-purple-700 dark:text-purple-300 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                    title="Importar catálogo y fotos desde archivo .json"
-                  >
-                    <Upload className="w-3.5 h-3.5 text-purple-500" />
-                    <span className="hidden sm:inline">Importar JSON</span>
-                  </button>
-
-                  <button
-                    onClick={handleCopyCodeJson}
-                    className="px-2.5 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-300 text-xs font-bold flex items-center gap-1 transition-colors cursor-pointer"
-                    title="Copiar código JSON para subirlo a GitHub"
-                  >
-                    {copiedJson ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5 text-slate-500" />}
-                    <span className="hidden sm:inline">{copiedJson ? '¡Copiado!' : 'Copiar JSON'}</span>
-                  </button>
-
-                  <button
-                    onClick={() => setShowAddForm(!showAddForm)}
-                    className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{showAddForm ? 'Cerrar' : 'Nuevo'}</span>
-                  </button>
-
-                  <button
-                    onClick={handleSaveAll}
-                    className="px-3 py-1.5 rounded-xl bg-[#FF6B35] hover:bg-[#e85a26] text-white text-xs font-black flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
-                  >
-                    <Save className="w-3.5 h-3.5" />
-                    <span>Guardar Todo</span>
-                  </button>
-
-                  <button
-                    onClick={() => {
-                      if (window.confirm('¿Deseas restablecer todos los productos a los valores y precios iniciales?')) {
-                        onResetToDefaults();
-                      }
-                    }}
-                    className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 hover:text-slate-800 dark:hover:text-white transition-colors cursor-pointer"
-                    title="Restablecer valores de fábrica"
-                  >
-                    <RotateCcw className="w-4 h-4" />
-                  </button>
-                </div>
-              )}
-            </div>
+            {/* Top Navigation Tabs: Fixed for other tabs, inside scroll for products */}
+            {activeTab !== 'products' && renderTabsBar(false)}
 
             {/* TAB 1: SEGURIDAD Y CONTRASEÑA */}
             {activeTab === 'security' ? (
@@ -2170,8 +2236,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 </div>
               </div>
             ) : (
-              /* TAB 3: PRODUCTOS Y PRECIOS */
-              <div className="flex-1 flex flex-col min-h-0">
+              /* TAB 3: PRODUCTOS Y PRECIOS - Scrollable container where top buttons scroll away and search bar sticks */
+              <div className="flex-1 overflow-y-auto min-h-0 flex flex-col">
+                {/* Top Navigation Tabs & Action Bar: Scrolls away naturally when scrolling down */}
+                {renderTabsBar(true)}
+
                 {/* Hidden input for importing JSON */}
                 <input
                   ref={importFileRef}
@@ -2194,8 +2263,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   </div>
                 )}
 
-                {/* Search & Filter Bar with Minimized Category Toggles */}
-                <div className="p-2.5 sm:p-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 flex flex-wrap items-center justify-between gap-2.5 shrink-0">
+                {/* STICKY SEARCH & CATEGORIES BAR: Stays always visible at top when scrolling down */}
+                <div className="sticky top-0 z-20 p-2.5 sm:p-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800 shadow-sm flex flex-wrap items-center justify-between gap-2.5">
                   <div className="flex flex-wrap items-center gap-2 flex-1 min-w-[240px]">
                     <div className="relative flex-1 min-w-[160px]">
                       <input
@@ -2220,7 +2289,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       <option value="Detalles en resina">Detalles en resina</option>
                     </select>
 
-                    {/* Minimized Category Toggles */}
+                    {/* Minimized Category Toggles: solo "Papelería" y "Resina" */}
                     {onToggleCategory && enabledCategories && (
                       <div className="flex items-center gap-1.5 shrink-0">
                         <button
@@ -2231,10 +2300,10 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                               ? 'bg-emerald-600 text-white border-emerald-600 shadow-2xs'
                               : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-300 dark:border-slate-700 hover:border-slate-400'
                           }`}
-                          title={enabledCategories['Papelería creativa'] ? 'Papelería Creativa: Activa (Clic para poner Muy Pronto)' : 'Papelería Creativa: Bloqueada (Clic para Activar)'}
+                          title={enabledCategories['Papelería creativa'] ? 'Papelería: Activa (Clic para poner Muy Pronto)' : 'Papelería: Bloqueada (Clic para Activar)'}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${enabledCategories['Papelería creativa'] ? 'bg-white' : 'bg-amber-500'}`} />
-                          <span>Papelería: {enabledCategories['Papelería creativa'] ? 'Activa' : 'Pronto'}</span>
+                          <span>Papelería</span>
                         </button>
 
                         <button
@@ -2248,7 +2317,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           title={enabledCategories['Detalles en resina'] ? 'Resina: Activa (Clic para poner Muy Pronto)' : 'Resina: Bloqueada (Clic para Activar)'}
                         >
                           <span className={`w-1.5 h-1.5 rounded-full ${enabledCategories['Detalles en resina'] ? 'bg-white' : 'bg-amber-500'}`} />
-                          <span>Resina: {enabledCategories['Detalles en resina'] ? 'Activa' : 'Pronto'}</span>
+                          <span>Resina</span>
                         </button>
                       </div>
                     )}
@@ -2364,85 +2433,11 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                           )}
                         </div>
 
-                        {/* Upload Controls (Punto 1 y Punto 2) */}
+                        {/* Image URL Input */}
                         <div className="sm:col-span-3 space-y-2">
                           <div>
                             <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                              1. Cargar foto desde tu celular o computadora:
-                            </span>
-                            <input
-                              type="file"
-                              ref={newProductFileInputRef}
-                              accept="image/*"
-                              onChange={handleNewProductFileUpload}
-                              className="hidden"
-                            />
-                            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                              <button
-                                type="button"
-                                onClick={handleOpenPostimagesForNew}
-                                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-sky-600 to-[#1BA7D9] hover:from-sky-700 hover:to-[#158db8] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
-                                title="Abrir tu galería Postimages (https://postimg.cc/gallery/zJjp92t) para cargar foto"
-                              >
-                                <ExternalLink className="w-4 h-4 text-white" />
-                                <span>1. Subir a mi Galería Postimages</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={handlePasteFromClipboardForNew}
-                                className="w-full py-2.5 px-3 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
-                                title="Pegar enlace directo copiado de Postimages y colocarlo en el Punto 2"
-                              >
-                                <Copy className="w-4 h-4 text-white" />
-                                <span>2. Pegar Enlace Copiado</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => setShowGalleryPickerForNew(true)}
-                                className="w-full py-2.5 px-3 rounded-xl bg-[#0B2545] hover:bg-[#144272] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer"
-                                title="Elegir foto directamente de la galería oficial (https://postimg.cc/gallery/zJjp92t)"
-                              >
-                                <Sparkles className="w-4 h-4 text-[#1BA7D9]" />
-                                <span>Elegir de tu Galería (zJjp92t)</span>
-                              </button>
-
-                              <button
-                                type="button"
-                                onClick={() => newProductFileInputRef.current?.click()}
-                                disabled={isUploadingNewImage}
-                                className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FF6B35] to-[#ff8555] hover:from-[#e85a26] hover:to-[#FF6B35] text-white text-xs font-black flex items-center justify-center gap-2 shadow-xs transition-transform active:scale-95 cursor-pointer disabled:opacity-50"
-                                title="Cargar foto desde tu móvil o PC directamente al servidor"
-                              >
-                                {isUploadingNewImage ? (
-                                  <Loader2 className="w-4 h-4 text-white animate-spin" />
-                                ) : (
-                                  <Upload className="w-4 h-4 text-white" />
-                                )}
-                                <span>
-                                  {isUploadingNewImage
-                                    ? 'Guardando foto...'
-                                    : 'Subir Foto desde Móvil o PC'}
-                                </span>
-                              </button>
-                            </div>
-
-                            <div className="mt-1 flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400">
-                              <span>Galería oficial: <strong className="text-[#1BA7D9]">postimg.cc/gallery/zJjp92t</strong></span>
-                            </div>
-
-                            {newImageUploadMsg && (
-                              <div className="mt-1.5 p-2 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-800 text-[11px] font-bold text-emerald-700 dark:text-emerald-300 flex items-center gap-1.5 animate-in fade-in">
-                                <Check className="w-3.5 h-3.5 text-emerald-500 shrink-0" />
-                                <span>{newImageUploadMsg}</span>
-                              </div>
-                            )}
-                          </div>
-
-                          <div>
-                            <span className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
-                              2. Enlace Directo en la Nube (Punto 2 - Se autocompleta con https://i.postimg.cc/...):
+                              Enlace o URL de la imagen en la nube:
                             </span>
                             <div className="flex gap-2">
                               <input
@@ -2508,87 +2503,8 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                   </form>
                 )}
 
-                {/* Products Grid List & Scrollable Sync Card */}
-                <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-4">
-                  {/* Dedicated GitHub, Vercel & Phone Sync Card (Scrolls with products so it hides when scrolling down) */}
-                  {showSyncBanner && (
-                    <div className="p-3.5 sm:p-4 rounded-2xl bg-gradient-to-r from-sky-500/10 via-emerald-500/10 to-amber-500/10 border border-sky-200 dark:border-sky-900/60 flex flex-col md:flex-row md:items-center justify-between gap-3 relative transition-all">
-                      <div className="space-y-1 pr-7">
-                        <div className="flex items-center gap-2">
-                          <Sparkles className="w-4 h-4 text-[#FF6B35]" />
-                          <span className="text-xs font-black text-slate-800 dark:text-white uppercase tracking-wider">
-                            Sincronización con GitHub, Vercel y Teléfonos
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-slate-600 dark:text-slate-300 leading-relaxed max-w-xl">
-                          Para que los cambios de fotos o precios hechos en tu PC se apliquen en los teléfonos instalados, usa estos botones para copiar o exportar tu catálogo a GitHub, o pulsa «Sincronizar Teléfono» para refrescar el dispositivo actual.
-                        </p>
-                      </div>
-
-                      <div className="flex flex-wrap items-center gap-2 shrink-0">
-                        {onRecoverCustomProducts && (
-                          <button
-                            onClick={handleRecover}
-                            className="px-3 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                            title="Escanear la memoria local y restaurar todas las fotos y cambios previos"
-                          >
-                            <RotateCcw className="w-3.5 h-3.5" />
-                            <span>🛡️ Restaurar Mis Fotos</span>
-                          </button>
-                        )}
-
-                        {onForceSync && (
-                          <button
-                            onClick={onForceSync}
-                            disabled={isUpdating}
-                            className="px-3 py-2 rounded-xl bg-[#1BA7D9] hover:bg-[#158db8] text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                            title="Refrescar caché del teléfono y cargar últimas fotos"
-                          >
-                            <RefreshCw className={`w-3.5 h-3.5 ${isUpdating ? 'animate-spin' : ''}`} />
-                            <span>{isUpdating ? 'Sincronizando...' : '🔄 Sincronizar Teléfono'}</span>
-                          </button>
-                        )}
-
-                        <button
-                          onClick={handleCopyCodeJson}
-                          className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                          title="Copiar JSON de productos al portapapeles para actualizar initialProducts.ts"
-                        >
-                          {copiedJson ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5 text-slate-300" />}
-                          <span>{copiedJson ? '¡Copiado!' : '📋 Copiar JSON'}</span>
-                        </button>
-
-                        <button
-                          onClick={handleExportJson}
-                          className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                          title="Descargar copia de seguridad con fotos en archivo .json"
-                        >
-                          <Download className="w-3.5 h-3.5" />
-                          <span>💾 Exportar JSON</span>
-                        </button>
-
-                        <button
-                          onClick={() => importFileRef.current?.click()}
-                          className="px-3 py-2 rounded-xl bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm transition-all cursor-pointer active:scale-95"
-                          title="Importar catálogo con fotos guardadas desde archivo JSON"
-                        >
-                          <Upload className="w-3.5 h-3.5" />
-                          <span>📂 Importar JSON</span>
-                        </button>
-                      </div>
-
-                      {/* Close button to dismiss banner */}
-                      <button
-                        type="button"
-                        onClick={() => setShowSyncBanner(false)}
-                        className="absolute top-2.5 right-2.5 p-1 rounded-lg text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-200/50 dark:hover:bg-slate-800/50 transition-colors cursor-pointer"
-                        title="Ocultar este aviso"
-                      >
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  )}
-
+                {/* Products Grid List */}
+                <div className="p-3 sm:p-4 space-y-4">
                   {importSuccessMsg && (
                     <div className="w-full p-2.5 rounded-xl bg-emerald-100 dark:bg-emerald-950/70 border border-emerald-300 dark:border-emerald-800 text-emerald-800 dark:text-emerald-300 text-xs font-bold flex items-center gap-2">
                       <Check className="w-4 h-4 text-emerald-600 shrink-0" />
@@ -2799,6 +2715,59 @@ export const AdminModal: React.FC<AdminModalProps> = ({
           }}
           currentImage={newProduct.image}
         />
+        {/* Sync Info Modal for Internal Code Changes via JSON */}
+        {showSyncInfoModal && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs animate-in fade-in">
+            <div className="bg-white dark:bg-slate-900 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-800 space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <div className="w-8 h-8 rounded-xl bg-[#1BA7D9]/20 flex items-center justify-center text-[#1BA7D9]">
+                    <RefreshCw className="w-4 h-4" />
+                  </div>
+                  <h3 className="text-sm font-bold text-slate-800 dark:text-white">
+                    Sincronizar Cambios Internos en la App
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setShowSyncInfoModal(false)}
+                  className="p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-slate-700 dark:hover:text-white cursor-pointer"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">
+                Para que las fotos o modificaciones que hiciste se apliquen de forma definitiva en el código de la tienda (GitHub y Vercel) y se vean en todos los teléfonos:
+              </p>
+
+              <ol className="text-xs text-slate-600 dark:text-slate-300 space-y-2.5 list-decimal list-inside bg-slate-50 dark:bg-slate-800/50 p-4 rounded-2xl border border-slate-200/80 dark:border-slate-700/80">
+                <li>Presiona <strong>«Copiar JSON de Código»</strong> abajo para copiar el catálogo actual.</li>
+                <li>Abre en tu repositorio el archivo <code>src/data/initialProducts.ts</code>.</li>
+                <li>Pega el código copiado reemplazando la lista <code>INITIAL_PRODUCTS</code>.</li>
+                <li>Haz <em>commit &amp; push</em> a GitHub. Vercel publicará la nueva versión automáticamente en todos los teléfonos.</li>
+              </ol>
+
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={handleCopyCodeJson}
+                  className="px-4 py-2.5 rounded-xl bg-[#0B2545] dark:bg-[#1BA7D9] text-white text-xs font-bold flex items-center gap-1.5 cursor-pointer shadow-sm hover:opacity-90 active:scale-95 transition-all"
+                >
+                  {copiedJson ? <Check className="w-4 h-4 text-emerald-400" /> : <Copy className="w-4 h-4" />}
+                  <span>{copiedJson ? '¡Copiado!' : 'Copiar JSON Ahora'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowSyncInfoModal(false)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-700 cursor-pointer"
+                >
+                  Cerrar
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
