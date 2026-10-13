@@ -8,6 +8,7 @@ export interface PrivacyLegalConfig {
   lastUpdated: string;
   applicationName: string;
   deletionResponseHours: string;
+  facebookUrl?: string;
 }
 
 export const DEFAULT_PRIVACY_CONFIG: PrivacyLegalConfig = {
@@ -20,6 +21,7 @@ export const DEFAULT_PRIVACY_CONFIG: PrivacyLegalConfig = {
   lastUpdated: 'Octubre de 2026',
   applicationName: 'Coralink – Catálogo y Tienda de Arte & Personalización Caribeña',
   deletionResponseHours: '48 horas hábiles',
+  facebookUrl: 'https://facebook.com/coralinkcornisland',
 };
 
 const PRIVACY_STORAGE_KEY = 'coralink_privacy_config';

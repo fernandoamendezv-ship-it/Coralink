@@ -38,6 +38,8 @@ import {
   Clock,
   FileText,
   MapPin,
+  Facebook,
+  Share2,
 } from 'lucide-react';
 import { CoralinkLogo } from './CoralinkLogo';
 import { EditProductModal } from './EditProductModal';
@@ -99,12 +101,22 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   enabledCategories,
   onToggleCategory,
 }) => {
-  const [activeTab, setActiveTab] = useState<'products' | 'logo' | 'privacy' | 'security'>('products');
+  const [activeTab, setActiveTab] = useState<'products' | 'logo' | 'privacy' | 'security' | 'social'>('products');
   const [localProducts, setLocalProducts] = useState<Product[]>(products);
   const [filterQuery, setFilterQuery] = useState('');
   const [selectedMainCat, setSelectedMainCat] = useState<string>('Todas');
   const [selectedProductToEdit, setSelectedProductToEdit] = useState<Product | null>(null);
   const [recoverToastMsg, setRecoverToastMsg] = useState<string | null>(null);
+
+  // Social kit copy toast state
+  const [copiedSocialKey, setCopiedSocialKey] = useState<string | null>(null);
+  const handleCopySocialText = (text: string, key: string) => {
+    try {
+      navigator.clipboard.writeText(text);
+      setCopiedSocialKey(key);
+      setTimeout(() => setCopiedSocialKey(null), 2500);
+    } catch (_) {}
+  };
 
   // Privacy Policy & Legal Details Editable State
   const [privacyForm, setPrivacyForm] = useState<PrivacyLegalConfig>(() => getPrivacyConfig());
@@ -1030,6 +1042,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                 </button>
 
                 <button
+                  onClick={() => setActiveTab('social')}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
+                    activeTab === 'social'
+                      ? 'bg-[#1877F2] text-white shadow-xs'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
+                  }`}
+                >
+                  <Facebook className={`w-4 h-4 ${activeTab === 'social' ? 'text-white' : 'text-[#1877F2]'}`} />
+                  <span>Kit Facebook &amp; Redes</span>
+                </button>
+
+                <button
                   onClick={() => setActiveTab('security')}
                   className={`px-3.5 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer ${
                     activeTab === 'security'
@@ -1644,6 +1668,485 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                       </div>
                     </div>
                   </form>
+                </div>
+              </div>
+            ) : activeTab === 'social' ? (
+              /* TAB: KIT FACEBOOK Y REDES SOCIALES */
+              <div className="flex-1 overflow-y-auto p-4 sm:p-8 space-y-6">
+                <div className="max-w-4xl mx-auto space-y-6">
+                  {/* Top Intro Banner */}
+                  <div className="bg-gradient-to-r from-[#0B2545] via-[#113264] to-[#1BA7D9] text-white p-6 sm:p-8 rounded-3xl shadow-lg relative overflow-hidden">
+                    <div className="absolute -right-10 -bottom-10 w-48 h-48 bg-white/10 rounded-full blur-2xl pointer-events-none" />
+                    <div className="relative z-10 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div>
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/15 text-xs font-bold mb-3 backdrop-blur-xs">
+                          <Facebook className="w-3.5 h-3.5 text-[#1877F2] bg-white rounded-full p-0.5" />
+                          <span>Kit de Marca &amp; Redes Sociales</span>
+                        </div>
+                        <h3 className="text-xl sm:text-2xl font-black tracking-tight">
+                          Diseño Oficial de Coralink para Facebook
+                        </h3>
+                        <p className="text-xs sm:text-sm text-slate-200 mt-1 max-w-xl leading-relaxed">
+                          Descarga las imágenes oficiales de portada y foto de perfil en alta resolución, y copia los textos y enlaces recomendados para que tu página de Facebook luzca idéntica a tu aplicación.
+                        </p>
+                      </div>
+
+                      <div className="shrink-0 flex sm:flex-col gap-2">
+                        <a
+                          href="/facebook/portada_facebook_coralink.jpg"
+                          download="portada_facebook_coralink.jpg"
+                          className="px-4 py-2 rounded-xl bg-white text-[#0B2545] hover:bg-slate-100 font-black text-xs flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                        >
+                          <Download className="w-4 h-4 text-[#1BA7D9]" />
+                          <span>Descargar Portada</span>
+                        </a>
+                        <a
+                          href="/facebook/perfil_facebook_coralink.png"
+                          download="perfil_facebook_coralink.png"
+                          className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer backdrop-blur-xs"
+                        >
+                          <Download className="w-4 h-4" />
+                          <span>Descargar Avatar Logo</span>
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Explanatory callout about Facebook login/permissions */}
+                    <div className="mt-4 pt-4 border-t border-white/15 text-xs text-slate-200 flex items-start gap-2.5">
+                      <HelpCircle className="w-4 h-4 text-amber-300 shrink-0 mt-0.5" />
+                      <span>
+                        <strong>¿Por qué se hace así?</strong> Meta (Facebook) requiere por normas de privacidad que inicies sesión en tu propia cuenta de Facebook para actualizar tus fotos de perfil y portada. Con este kit ya tienes todos los gráficos y textos listos con el formato exacto para aplicarlos en 2 minutos.
+                      </span>
+                    </div>
+                  </div>
+
+                  {/* Facebook Mockup Live Preview */}
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-3 rounded-full bg-red-400" />
+                        <div className="w-3 h-3 rounded-full bg-amber-400" />
+                        <div className="w-3 h-3 rounded-full bg-emerald-400" />
+                        <span className="text-xs font-bold text-slate-500 ml-2">Simulador en vivo de Facebook</span>
+                      </div>
+                      <span className="text-[11px] font-semibold text-slate-400">
+                        facebook.com/coralinkcornisland
+                      </span>
+                    </div>
+
+                    {/* Facebook Header Mockup */}
+                    <div className="bg-slate-100 dark:bg-slate-950 p-3 sm:p-6">
+                      <div className="max-w-3xl mx-auto bg-white dark:bg-slate-900 rounded-2xl shadow-md border border-slate-200 dark:border-slate-800 overflow-hidden">
+                        {/* Cover Image */}
+                        <div className="relative aspect-[16/7] sm:aspect-[21/9] w-full overflow-hidden bg-slate-800">
+                          <img
+                            src="/facebook/portada_facebook_coralink.jpg"
+                            alt="Portada de Facebook Coralink"
+                            className="w-full h-full object-cover"
+                          />
+                          <div className="absolute top-3 right-3">
+                            <span className="px-2.5 py-1 rounded-lg bg-black/60 text-white text-[10px] font-bold backdrop-blur-xs flex items-center gap-1">
+                              <ImageIcon className="w-3 h-3" /> 820 × 360 px
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Profile Photo & Info */}
+                        <div className="px-5 pb-5 pt-0 relative">
+                          <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 -mt-12 sm:-mt-16">
+                            <div className="flex flex-col sm:flex-row items-center sm:items-end gap-3 text-center sm:text-left">
+                              <div className="w-24 h-24 sm:w-28 sm:h-28 rounded-full border-4 border-white dark:border-slate-900 overflow-hidden shadow-xl bg-white relative shrink-0 flex items-center justify-center p-2.5">
+                                <img
+                                  src="/facebook/perfil_facebook_coralink.png"
+                                  alt="Avatar oficial de Facebook Coralink"
+                                  className="w-full h-full object-contain"
+                                />
+                              </div>
+                              <div className="pt-2 sm:pt-0">
+                                <div className="flex items-center justify-center sm:justify-start gap-1.5">
+                                  <h4 className="text-lg sm:text-xl font-black text-slate-900 dark:text-white">
+                                    Coralink
+                                  </h4>
+                                  <span className="w-4 h-4 rounded-full bg-[#1877F2] text-white flex items-center justify-center text-[9px] font-bold" title="Página Oficial">
+                                    ✓
+                                  </span>
+                                </div>
+                                <p className="text-xs text-[#1BA7D9] font-bold">
+                                  Detalles &amp; Regalos Personalizados • Corn Island
+                                </p>
+                                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+                                  Tienda de regalos y productos personalizados: tazas, termos, foto-rocas y detalles · Corn Island, Nicaragua
+                                </p>
+                              </div>
+                            </div>
+
+                            {/* Facebook Buttons */}
+                            <div className="flex items-center justify-center gap-2 pt-2 sm:pt-0">
+                              <a
+                                href="https://wa.me/50582045433"
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold flex items-center gap-1.5 shadow-sm"
+                              >
+                                <Phone className="w-3.5 h-3.5" />
+                                <span>WhatsApp (+505 8204 5433)</span>
+                              </a>
+                              <button
+                                type="button"
+                                onClick={() => setActiveTab('products')}
+                                className="px-3 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-bold hover:bg-slate-200"
+                              >
+                                Ver Tienda Web
+                              </button>
+                            </div>
+                          </div>
+
+                          {/* Facebook Tabs Mockup */}
+                          <div className="mt-5 pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center gap-6 text-xs font-bold text-slate-500 overflow-x-auto">
+                            <span className="text-[#1877F2] pb-2 border-b-2 border-[#1877F2]">Publicaciones</span>
+                            <span className="hover:text-slate-700">Información</span>
+                            <span className="hover:text-slate-700">Fotos</span>
+                            <span className="hover:text-slate-700">Catálogo</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section: Descargas en Alta Resolución */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Card 1: Foto de Portada */}
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <ImageIcon className="w-5 h-5 text-[#1BA7D9]" />
+                          <h4 className="text-sm font-black text-slate-900 dark:text-white">
+                            Foto de Portada (Banner)
+                          </h4>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 dark:text-blue-400 border border-blue-500/20">
+                          16:9 • 820 × 360 px
+                        </span>
+                      </div>
+
+                      <div className="aspect-[16/9] w-full rounded-2xl overflow-hidden border border-slate-200 dark:border-slate-700 bg-slate-900 group relative">
+                        <img
+                          src="/facebook/portada_facebook_coralink.jpg"
+                          alt="Portada de Facebook Coralink"
+                          className="w-full h-full object-cover transition-transform group-hover:scale-105 duration-300"
+                        />
+                      </div>
+
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        Banner de alta definición enfocado en <strong>Productos y Regalos Personalizados</strong>: nombre Coralink con la paleta de colores oficial (coral y turquesa caribeño), placa de foto roca con paisaje natural de Corn Island, taza personalizada y termo grabado.
+                      </p>
+
+                      <div className="flex items-center gap-2 pt-1">
+                        <a
+                          href="/facebook/portada_facebook_coralink.jpg"
+                          download="portada_facebook_coralink.jpg"
+                          className="flex-1 py-2.5 px-3 rounded-xl bg-[#0B2545] hover:bg-[#113264] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                        >
+                          <Download className="w-4 h-4 text-[#1BA7D9]" />
+                          <span>Descargar Portada JPG</span>
+                        </a>
+                        <a
+                          href="/facebook/portada_facebook_coralink.jpg"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors"
+                          title="Ver en pantalla completa"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
+
+                    {/* Card 2: Foto de Perfil */}
+                    <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div className="flex items-center gap-2">
+                          <Sparkles className="w-5 h-5 text-amber-500" />
+                          <h4 className="text-sm font-black text-slate-900 dark:text-white">
+                            Foto de Perfil (Avatar / Logo Oficial)
+                          </h4>
+                        </div>
+                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20">
+                          1:1 • 1024 × 1024 px
+                        </span>
+                      </div>
+
+                      <div className="aspect-square max-w-[220px] mx-auto rounded-full overflow-hidden border-4 border-[#1BA7D9]/40 bg-white group relative shadow-md p-4 flex items-center justify-center">
+                        <img
+                          src="/facebook/perfil_facebook_coralink.png"
+                          alt="Avatar oficial de la app Coralink"
+                          className="w-full h-full object-contain transition-transform group-hover:scale-105 duration-300"
+                        />
+                      </div>
+
+                      <p className="text-xs text-slate-500 dark:text-slate-400 text-center">
+                        <strong>Logo oficial de la app Coralink</strong> adaptado en lienzo 1:1 en alta definición (1024 × 1024 px), centrado y listo para que Facebook lo encuadre en círculo sin recortar los bordes.
+                      </p>
+
+                      <div className="flex flex-col sm:flex-row items-center gap-2 pt-1">
+                        <a
+                          href="/facebook/perfil_facebook_coralink.png"
+                          download="perfil_facebook_coralink.png"
+                          className="w-full sm:flex-1 py-2.5 px-3 rounded-xl bg-[#0B2545] hover:bg-[#113264] text-white text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-xs"
+                        >
+                          <Download className="w-4 h-4 text-emerald-400" />
+                          <span>Descargar PNG (Original)</span>
+                        </a>
+                        <a
+                          href="/facebook/perfil_facebook_coralink.jpg"
+                          download="perfil_facebook_coralink.jpg"
+                          className="w-full sm:w-auto py-2.5 px-3 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-xs font-bold flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                        >
+                          <Download className="w-4 h-4 text-amber-500" />
+                          <span>JPG</span>
+                        </a>
+                        <a
+                          href="/facebook/perfil_facebook_coralink.png"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="py-2.5 px-3 rounded-xl border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-800 text-xs font-bold text-slate-700 dark:text-slate-300 transition-colors"
+                          title="Ver en pantalla completa"
+                        >
+                          <ExternalLink className="w-4 h-4" />
+                        </a>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section: Textos Listos para Copiar (Copywriting) */}
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-5">
+                    <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div className="flex items-center gap-2 text-base font-black text-[#0B2545] dark:text-white">
+                        <Copy className="w-5 h-5 text-[#1BA7D9]" />
+                        <span>Textos Oficiales Listos para Copiar a Facebook</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Haz clic en cada botón de copiar para pegar la información directamente en tu página de Facebook.
+                      </p>
+                    </div>
+
+                    <div className="space-y-4">
+                      {/* 1. Nombre de la Página */}
+                      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                        <div className="space-y-1">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                            Nombre Recomendado de la Página
+                          </span>
+                          <p className="text-xs font-bold text-slate-900 dark:text-white">
+                            Coralink – Detalles &amp; Regalos Personalizados
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopySocialText('Coralink – Detalles & Regalos Personalizados', 'page_name')}
+                          className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                        >
+                          {copiedSocialKey === 'page_name' ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-500" />
+                              <span className="text-emerald-600 dark:text-emerald-400">¡Copiado!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Copiar Nombre</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* 2. Biografía / Presentación */}
+                      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 flex flex-col sm:flex-row sm:items-start justify-between gap-3">
+                        <div className="space-y-1 max-w-xl">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                            Presentación / Biografía Corta
+                          </span>
+                          <p className="text-xs text-slate-700 dark:text-slate-300 leading-relaxed">
+                            Regalos y detalles personalizados con amor isleño desde Corn Island, Nicaragua 🌴 Tazas personalizadas, termos grabados, foto roca y recuerdos únicos. 📦 Envíos a todo el país.
+                          </p>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => handleCopySocialText('Regalos y detalles personalizados con amor isleño desde Corn Island, Nicaragua 🌴 Tazas personalizadas, termos grabados, foto roca y recuerdos únicos. 📦 Envíos a todo el país.', 'bio')}
+                          className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                        >
+                          {copiedSocialKey === 'bio' ? (
+                            <>
+                              <Check className="w-3.5 h-3.5 text-emerald-500" />
+                              <span className="text-emerald-600 dark:text-emerald-400">¡Copiado!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-3.5 h-3.5" />
+                              <span>Copiar Bio</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+
+                      {/* 3. Publicación Fijada / Post de Bienvenida */}
+                      <div className="p-4 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">
+                            Publicación Fijada de Lanzamiento (Post de Bienvenida)
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() => handleCopySocialText(`¡Bienvenidos a la página oficial de Coralink Corn Island! 🌴🎁✨\n\nPersonalizamos tus momentos más especiales con regalos y detalles únicos hechos con amor:\n☕ Tazas personalizadas y térmicas con nombres, fotos y diseños exclusivos\n🧊 Termos de acero inoxidable con grabados personalizados\n🖼️ Piedras foto roca con paisajes y fotografías conmemorativas de alta fidelidad\n🔑 Llaveros grabados y detalles únicos con nombres y diseño a tu gusto\n\n📲 Haz tu pedido o cotiza al instante por WhatsApp: +505 8204 5433\n🛍️ Explora y cotiza desde nuestro catálogo interactivo: ${typeof window !== 'undefined' ? window.location.origin : 'https://coralink.app'}\n📍 Corn Island, Nicaragua · Envíos seguros a nivel nacional 💙🌊`, 'pinned_post')}
+                            className="px-3.5 py-1.5 rounded-xl bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 text-xs font-bold text-slate-700 dark:text-slate-200 hover:bg-slate-100 flex items-center justify-center gap-1.5 transition-colors cursor-pointer shrink-0"
+                          >
+                            {copiedSocialKey === 'pinned_post' ? (
+                              <>
+                                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                                <span className="text-emerald-600 dark:text-emerald-400">¡Copiado!</span>
+                              </>
+                            ) : (
+                              <>
+                                <Copy className="w-3.5 h-3.5" />
+                                <span>Copiar Post Completo</span>
+                              </>
+                            )}
+                          </button>
+                        </div>
+                        <div className="bg-white dark:bg-slate-900 p-3 rounded-xl border border-slate-200/80 dark:border-slate-700/80 text-xs text-slate-700 dark:text-slate-300 font-mono whitespace-pre-line leading-relaxed">
+                          {`¡Bienvenidos a la página oficial de Coralink Corn Island! 🌴🎁✨\n\nPersonalizamos tus momentos más especiales con regalos y detalles únicos hechos con amor:\n☕ Tazas personalizadas y térmicas con nombres, fotos y diseños exclusivos\n🧊 Termos de acero inoxidable con grabados personalizados\n🖼️ Piedras foto roca con paisajes y fotografías conmemorativas de alta fidelidad\n🔑 Llaveros grabados y detalles únicos con nombres y diseño a tu gusto\n\n📲 Haz tu pedido o cotiza al instante por WhatsApp: +505 8204 5433\n🛍️ Explora y cotiza desde nuestro catálogo interactivo: ${typeof window !== 'undefined' ? window.location.origin : 'https://coralink.app'}\n📍 Corn Island, Nicaragua · Envíos seguros a nivel nacional 💙🌊`}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Section: Paleta de Colores de Marca */}
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                    <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div className="flex items-center gap-2 text-base font-black text-[#0B2545] dark:text-white">
+                        <Sparkles className="w-5 h-5 text-amber-500" />
+                        <span>Paleta de Colores de Coralink</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Utiliza estos colores en tus publicaciones o historias de Facebook para mantener la coherencia de marca.
+                      </p>
+                    </div>
+
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                      <button
+                        type="button"
+                        onClick={() => handleCopySocialText('#0B2545', 'color_navy')}
+                        className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-left hover:scale-[1.02] transition-transform cursor-pointer bg-slate-50 dark:bg-slate-800/50"
+                      >
+                        <div className="w-full h-10 rounded-xl bg-[#0B2545] shadow-xs mb-2" />
+                        <span className="text-xs font-bold block text-slate-800 dark:text-white">Azul Marino</span>
+                        <span className="text-[10px] font-mono text-slate-400">#0B2545</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCopySocialText('#1BA7D9', 'color_cyan')}
+                        className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-left hover:scale-[1.02] transition-transform cursor-pointer bg-slate-50 dark:bg-slate-800/50"
+                      >
+                        <div className="w-full h-10 rounded-xl bg-[#1BA7D9] shadow-xs mb-2" />
+                        <span className="text-xs font-bold block text-slate-800 dark:text-white">Turquesa Mar</span>
+                        <span className="text-[10px] font-mono text-slate-400">#1BA7D9</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCopySocialText('#FF6B35', 'color_coral')}
+                        className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-left hover:scale-[1.02] transition-transform cursor-pointer bg-slate-50 dark:bg-slate-800/50"
+                      >
+                        <div className="w-full h-10 rounded-xl bg-[#FF6B35] shadow-xs mb-2" />
+                        <span className="text-xs font-bold block text-slate-800 dark:text-white">Coral Caribeño</span>
+                        <span className="text-[10px] font-mono text-slate-400">#FF6B35</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCopySocialText('#F59E0B', 'color_gold')}
+                        className="p-3 rounded-2xl border border-slate-200 dark:border-slate-700 text-left hover:scale-[1.02] transition-transform cursor-pointer bg-slate-50 dark:bg-slate-800/50"
+                      >
+                        <div className="w-full h-10 rounded-xl bg-[#F59E0B] shadow-xs mb-2" />
+                        <span className="text-xs font-bold block text-slate-800 dark:text-white">Arena Dorada</span>
+                        <span className="text-[10px] font-mono text-slate-400">#F59E0B</span>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Section: Configuración del Enlace a Facebook en la App */}
+                  <div className="bg-white dark:bg-slate-900 rounded-3xl p-6 sm:p-8 border border-slate-200 dark:border-slate-800 shadow-sm space-y-4">
+                    <div className="border-b border-slate-100 dark:border-slate-800 pb-3">
+                      <div className="flex items-center gap-2 text-base font-black text-[#0B2545] dark:text-white">
+                        <Facebook className="w-5 h-5 text-[#1877F2]" />
+                        <span>Enlace de tu Página de Facebook en la Tienda</span>
+                      </div>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                        Escribe el enlace de tu página de Facebook para que aparezca en el pie de página de la aplicación.
+                      </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row items-center gap-3">
+                      <div className="relative flex items-center flex-1 w-full">
+                        <Facebook className="w-4 h-4 text-[#1877F2] absolute left-3" />
+                        <input
+                          type="url"
+                          value={privacyForm.facebookUrl || ''}
+                          onChange={(e) => setPrivacyForm({ ...privacyForm, facebookUrl: e.target.value })}
+                          placeholder="https://facebook.com/coralinkcornisland"
+                          className="w-full pl-9 pr-3 py-2.5 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-white focus:border-[#1BA7D9] focus:ring-1 focus:ring-[#1BA7D9] outline-none"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={handleSavePrivacyConfig}
+                        className="w-full sm:w-auto px-5 py-2.5 rounded-xl bg-[#1877F2] hover:bg-[#166fe5] text-white text-xs font-black flex items-center justify-center gap-1.5 shadow-md transition-all cursor-pointer"
+                      >
+                        <Save className="w-4 h-4" />
+                        <span>Guardar Enlace</span>
+                      </button>
+                    </div>
+
+                    {privacySaveToast && (
+                      <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1 animate-in fade-in">
+                        <Check className="w-4 h-4" /> ¡Enlace de Facebook guardado y sincronizado!
+                      </span>
+                    )}
+                  </div>
+
+                  {/* Section: Guía Paso a Paso */}
+                  <div className="bg-slate-50 dark:bg-slate-800/40 rounded-3xl p-6 border border-slate-200 dark:border-slate-700 space-y-4">
+                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-600 dark:text-slate-300 flex items-center gap-2">
+                      <Clock className="w-4 h-4 text-[#1BA7D9]" />
+                      <span>Cómo aplicar tu diseño en Facebook en 3 pasos:</span>
+                    </h4>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 text-xs text-slate-600 dark:text-slate-300">
+                      <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 space-y-1">
+                        <span className="w-5 h-5 rounded-full bg-[#1BA7D9] text-white font-black flex items-center justify-center text-[10px] mb-2">1</span>
+                        <strong className="block text-slate-900 dark:text-white">Descarga los archivos</strong>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                          Usa los botones de arriba para guardar la Portada y la Foto de Perfil en tu teléfono o computadora.
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 space-y-1">
+                        <span className="w-5 h-5 rounded-full bg-[#1BA7D9] text-white font-black flex items-center justify-center text-[10px] mb-2">2</span>
+                        <strong className="block text-slate-900 dark:text-white">Súbelos a Facebook</strong>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                          Entra a tu página de Facebook, toca el icono de cámara en tu portada y perfil, y selecciona las fotos.
+                        </p>
+                      </div>
+
+                      <div className="p-3.5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700/80 space-y-1">
+                        <span className="w-5 h-5 rounded-full bg-[#1BA7D9] text-white font-black flex items-center justify-center text-[10px] mb-2">3</span>
+                        <strong className="block text-slate-900 dark:text-white">Copia los textos y publica</strong>
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-relaxed">
+                          Copia la biografía y publica el post fijado con el enlace a tu catálogo para que tus clientes coticen.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
             ) : (

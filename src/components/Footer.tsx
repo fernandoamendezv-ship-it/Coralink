@@ -1,12 +1,13 @@
 import React from 'react';
 import { CoralinkLogo } from './CoralinkLogo';
-import { MapPin, Heart, Sparkles, MessageCircle, RefreshCw } from 'lucide-react';
+import { MapPin, Sparkles, MessageCircle, RefreshCw, Facebook, Heart } from 'lucide-react';
 
 interface FooterProps {
   onOpenAdmin: () => void;
   logoUrl?: string;
   onForceSync?: () => void;
   onOpenPrivacyPolicy?: () => void;
+  facebookUrl?: string;
 }
 
 export const Footer: React.FC<FooterProps> = ({
@@ -14,6 +15,7 @@ export const Footer: React.FC<FooterProps> = ({
   logoUrl,
   onForceSync,
   onOpenPrivacyPolicy,
+  facebookUrl = 'https://facebook.com/coralinkcornisland',
 }) => {
   return (
     <footer className="bg-[#0B2545] text-white border-t border-slate-800 pt-10 pb-20 px-4 sm:px-6">
@@ -46,7 +48,7 @@ export const Footer: React.FC<FooterProps> = ({
           </div>
         </div>
 
-        {/* Contact WhatsApp, Location, Admin & Sync */}
+        {/* Contact WhatsApp, Facebook, Location, Admin & Sync */}
         <div className="flex flex-wrap items-center justify-center gap-3 sm:gap-4 text-xs pt-2">
           <a
             href="https://wa.me/50582045433"
@@ -57,6 +59,17 @@ export const Footer: React.FC<FooterProps> = ({
           >
             <MessageCircle className="w-3.5 h-3.5 text-emerald-400" />
             <span>WhatsApp: +505 8204 5433</span>
+          </a>
+
+          <a
+            href={facebookUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-[#1877F2]/20 hover:bg-[#1877F2]/35 text-blue-200 border border-[#1877F2]/40 font-bold transition-all shadow-2xs"
+            title="Página de Facebook de Coralink"
+          >
+            <Facebook className="w-3.5 h-3.5 text-[#1877F2]" />
+            <span>Facebook Coralink</span>
           </a>
           <span className="flex items-center gap-1 text-slate-400">
             <MapPin className="w-3.5 h-3.5 text-[#1BA7D9]" /> Corn Island, Costa Caribe Sur
