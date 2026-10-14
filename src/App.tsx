@@ -41,6 +41,7 @@ import {
   subscribeToStoreSettings,
   saveStoreSettingsToFirestore,
 } from './services/firebaseSettingsService';
+import { groupProductsWithVariants } from './utils/productVariants';
 
 export default function App() {
   // Theme mode (Dark / Light)
@@ -264,6 +265,24 @@ export default function App() {
   const [isPrivacyPolicyOpen, setIsPrivacyPolicyOpen] = useState(false);
   const [detailProduct, setDetailProduct] = useState<Product | null>(null);
   const [isSearchModalOpen, setIsSearchModalOpen] = useState(false);
+
+  const handleOpenProductDetail = (p: Product) => {
+    if (p.variants && p.variants.length > 1) {
+      setDetailProduct(p);
+      return;
+    }
+    const grouped = groupProductsWithVariants(products);
+    const foundGroup = grouped.find((g) => g.variants && g.variants.some((v) => v.id === p.id));
+    if (foundGroup) {
+      const matchIdx = foundGroup.variants?.findIndex((v) => v.id === p.id) ?? 0;
+      setDetailProduct({
+        ...foundGroup,
+        activeVariantIndex: matchIdx >= 0 ? matchIdx : 0,
+      });
+    } else {
+      setDetailProduct(p);
+    }
+  };
 
   // Search Modal handlers: Open dedicated modal or return home to the very top
   const handleOpenSearchModal = (query?: string) => {
@@ -590,7 +609,7 @@ const removeAccents = (str: string = ''): string => {
     const searchTerms = cleanQuery ? cleanQuery.split(/\s+/).filter(Boolean) : [];
     if (searchTerms.length === 0) return [];
 
-    return products.filter((p) => {
+    const matched = products.filter((p) => {
       const titleNorm = removeAccents(p.title);
       const subNorm = removeAccents(p.subCategory);
       const mainNorm = removeAccents(p.mainCategory);
@@ -602,6 +621,8 @@ const removeAccents = (str: string = ''): string => {
       const fullText = `${titleNorm} ${subNorm} ${mainNorm} ${descNorm} ${badgeNorm} ${optionsNorm}`;
       return searchTerms.every((term) => fullText.includes(term));
     });
+
+    return groupProductsWithVariants(matched, searchQuery);
   }, [products, searchQuery]);
 
   // Filtered & Sorted Products: In 'Todo', show exclusively 'Personalizados' sorted A-Z by subCategory
@@ -609,7 +630,7 @@ const removeAccents = (str: string = ''): string => {
     const cleanQuery = removeAccents(searchQuery);
     const searchTerms = cleanQuery ? cleanQuery.split(/\s+/).filter(Boolean) : [];
 
-    return products
+    const list = products
       .filter((p) => {
         // Search query (Accent-insensitive, multi-term, matching across title, subCategory, mainCategory, description, and tags)
         if (searchTerms.length > 0) {
@@ -682,6 +703,8 @@ const removeAccents = (str: string = ''): string => {
 
         return (b.badge ? 1 : 0) - (a.badge ? 1 : 0);
       });
+
+    return groupProductsWithVariants(list, searchQuery);
   }, [products, selectedCategory, selectedSubCategory, searchQuery, sortBy]);
 
   // Ofertas Flash: Solo muestra las seleccionadas explícitamente (isFlashDeal: true)
@@ -939,7 +962,7 @@ const removeAccents = (str: string = ''): string => {
                       index={idx % flashDealProducts.length}
                       isFavorite={favorites.includes(product.id)}
                       onToggleFavorite={handleToggleFavorite}
-                      onOpenDetail={setDetailProduct}
+                      onOpenDetail={handleOpenProductDetail}
                       onAddToCart={(p) => handleAddToCart(p, 1)}
                       onDirectWhatsApp={(p) => handleDirectWhatsApp(p, 1)}
                     />
@@ -1005,7 +1028,7 @@ const removeAccents = (str: string = ''): string => {
                     index={idx}
                     isFavorite={favorites.includes(product.id)}
                     onToggleFavorite={handleToggleFavorite}
-                    onOpenDetail={setDetailProduct}
+                    onOpenDetail={handleOpenProductDetail}
                     onAddToCart={(p) => handleAddToCart(p, 1)}
                     onDirectWhatsApp={(p) => handleDirectWhatsApp(p, 1)}
                   />
@@ -1082,7 +1105,7 @@ const removeAccents = (str: string = ''): string => {
         products={searchResultProducts}
         onClose={handleReturnHomeFromSearch}
         onReturnToHome={handleReturnHomeFromSearch}
-        onOpenDetail={setDetailProduct}
+        onOpenDetail={handleOpenProductDetail}
         onAddToCart={(p, qty, opts, note) => handleAddToCart(p, qty || 1, opts, note)}
         onDirectWhatsApp={(p, opts, note) => handleDirectWhatsApp(p, 1, opts, note)}
         favorites={favorites}
@@ -1110,7 +1133,7 @@ const removeAccents = (str: string = ''): string => {
         favorites={favorites}
         allProducts={products}
         onToggleFavorite={handleToggleFavorite}
-        onOpenDetail={setDetailProduct}
+        onOpenDetail={handleOpenProductDetail}
         onAddToCart={(p) => handleAddToCart(p, 1)}
         onDirectWhatsApp={(p) => handleDirectWhatsApp(p, 1)}
         onClearFavorites={() => setFavorites([])}

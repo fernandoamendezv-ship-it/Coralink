@@ -28,6 +28,9 @@ export interface Product {
     label: string;
     choices: string[];
   }[];
+  variantName?: string;
+  variants?: Product[];
+  activeVariantIndex?: number;
 }
 
 export interface CartItem {
