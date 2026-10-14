@@ -124,6 +124,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   const [privacyForm, setPrivacyForm] = useState<PrivacyLegalConfig>(() => getPrivacyConfig());
   const [privacySaveToast, setPrivacySaveToast] = useState(false);
 
+  useEffect(() => {
+    if (isOpen) {
+      setPrivacyForm(getPrivacyConfig());
+    }
+    const handlePrivacyEvent = (e: any) => {
+      if (e?.detail) setPrivacyForm(e.detail);
+    };
+    window.addEventListener('coralink_privacy_updated', handlePrivacyEvent);
+    return () => window.removeEventListener('coralink_privacy_updated', handlePrivacyEvent);
+  }, [isOpen]);
+
   const handleSavePrivacyConfig = (e: React.FormEvent) => {
     e.preventDefault();
     savePrivacyConfig(privacyForm);
@@ -761,11 +772,9 @@ export const AdminModal: React.FC<AdminModalProps> = ({
         type="button"
         onClick={() => {
           handleSaveAll();
-          if (activeTab === 'privacy') {
-            savePrivacyConfig(privacyForm);
-            setPrivacySaveToast(true);
-            setTimeout(() => setPrivacySaveToast(false), 3500);
-          }
+          savePrivacyConfig(privacyForm);
+          setPrivacySaveToast(true);
+          setTimeout(() => setPrivacySaveToast(false), 3500);
         }}
         className="px-2 sm:px-3.5 py-1.5 rounded-xl bg-[#FF6B35] hover:bg-[#e85a26] text-white text-[10px] xs:text-[11px] sm:text-xs font-black flex items-center justify-center gap-1 shadow-xs transition-colors cursor-pointer whitespace-nowrap shrink-0"
       >

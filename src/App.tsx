@@ -35,7 +35,12 @@ import {
 import {
   fetchProductsFromFirestore,
   syncAllProductsToFirestore,
+  subscribeToFirebaseProducts,
 } from './services/firebaseProductsService';
+import {
+  subscribeToStoreSettings,
+  saveStoreSettingsToFirestore,
+} from './services/firebaseSettingsService';
 
 export default function App() {
   // Theme mode (Dark / Light)
@@ -86,6 +91,7 @@ export default function App() {
     try {
       localStorage.setItem('coralink_custom_logo', newLogoUrl);
     } catch (_) {}
+    saveStoreSettingsToFirestore({ logoUrl: newLogoUrl }).catch(() => {});
   };
 
   const handleResetLogo = () => {
@@ -93,6 +99,7 @@ export default function App() {
     try {
       localStorage.removeItem('coralink_custom_logo');
     } catch (_) {}
+    saveStoreSettingsToFirestore({ logoUrl: '' }).catch(() => {});
   };
 
   // PWA Install & Update hook
@@ -157,13 +164,65 @@ export default function App() {
   // Show Double Arrow Scroll to Top button
   const [showScrollTop, setShowScrollTop] = useState(false);
 
+  // Real-time synchronization of store settings (Google Maps URL, location, logo, categories) across all devices
   useEffect(() => {
+    // 1. Fetch server privacy config on startup as immediate fallback
+    fetch('/api/privacy-config')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.success && data.config) {
+          setPrivacyConfig((prev) => ({ ...prev, ...data.config }));
+        }
+      })
+      .catch(() => {});
+
+    // 2. Attach live Firestore listener for store settings
+    const unsubscribeSettings = subscribeToStoreSettings((remoteSettings) => {
+      if (remoteSettings.privacyConfig) {
+        setPrivacyConfig((prev) => ({ ...prev, ...remoteSettings.privacyConfig }));
+      }
+      if (remoteSettings.logoUrl) {
+        setStoreLogo(remoteSettings.logoUrl);
+      }
+      if (remoteSettings.enabledCategories) {
+        setEnabledCategories(remoteSettings.enabledCategories);
+      }
+    });
+
+    // 3. Attach live Firestore listener for product catalog
+    const unsubscribeProducts = subscribeToFirebaseProducts((remoteProducts) => {
+      if (remoteProducts && remoteProducts.length > 0) {
+        const clean = filterOutDeletedProducts(remoteProducts);
+        setProducts(clean);
+        try {
+          localStorage.setItem('coralink_custom_products', JSON.stringify(clean));
+          localStorage.setItem('coralink_custom_products_backup', JSON.stringify(clean));
+        } catch (_) {}
+      }
+    });
+
     const handlePrivacyUpdated = (e: any) => {
       if (e?.detail) setPrivacyConfig(e.detail);
       else setPrivacyConfig(getPrivacyConfig());
     };
+    const handleLogoUpdated = (e: any) => {
+      if (e?.detail) setStoreLogo(e.detail);
+    };
+    const handleCategoriesUpdated = (e: any) => {
+      if (e?.detail) setEnabledCategories(e.detail);
+    };
+
     window.addEventListener('coralink_privacy_updated', handlePrivacyUpdated);
-    return () => window.removeEventListener('coralink_privacy_updated', handlePrivacyUpdated);
+    window.addEventListener('coralink_logo_updated', handleLogoUpdated);
+    window.addEventListener('coralink_categories_updated', handleCategoriesUpdated);
+
+    return () => {
+      unsubscribeSettings();
+      unsubscribeProducts();
+      window.removeEventListener('coralink_privacy_updated', handlePrivacyUpdated);
+      window.removeEventListener('coralink_logo_updated', handleLogoUpdated);
+      window.removeEventListener('coralink_categories_updated', handleCategoriesUpdated);
+    };
   }, []);
 
   // Listen to window scroll to show double-arrow button when user scrolls down or nears bottom
@@ -264,6 +323,7 @@ export default function App() {
       try {
         localStorage.setItem('coralink_enabled_categories', JSON.stringify(next));
       } catch {}
+      saveStoreSettingsToFirestore({ enabledCategories: next }).catch(() => {});
       return next;
     });
   };
@@ -357,6 +417,15 @@ export default function App() {
 
     // 1. Instantly push to Firebase Firestore in the cloud and purge deleted IDs
     syncAllProductsToFirestore(cleanUpdated, deletedProductId).catch(() => {});
+
+    // Sync deleted IDs set to store settings so other devices immediately purge deleted products
+    const currentDeleted = Array.from(getDeletedProductIds());
+    if (deletedProductId && !currentDeleted.includes(deletedProductId)) {
+      currentDeleted.push(deletedProductId);
+    }
+    if (currentDeleted.length > 0) {
+      saveStoreSettingsToFirestore({ deletedProductIds: currentDeleted }).catch(() => {});
+    }
 
     // 2. Also send to local backend if available
     fetch('/api/products', {

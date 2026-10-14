@@ -15,7 +15,7 @@ export const Footer: React.FC<FooterProps> = ({
   logoUrl,
   onOpenPrivacyPolicy,
   facebookUrl = 'https://facebook.com/coralinkcornisland',
-  googleMapsUrl = 'https://maps.google.com/?q=Corn+Island,+Costa+Caribe+Sur,+Nicaragua',
+  googleMapsUrl = 'https://maps.app.goo.gl/th6kUrE4PXsG874a6',
 }) => {
 
   return (

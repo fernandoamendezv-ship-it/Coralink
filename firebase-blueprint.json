@@ -22,14 +22,15 @@
     },
     "StoreConfig": {
       "title": "StoreConfig",
-      "description": "Storewide configuration and branding settings",
+      "description": "Storewide configuration, location, branding, and privacy settings",
       "type": "object",
       "properties": {
         "logoUrl": { "type": "string", "description": "Direct URL to store logo" },
-        "storeName": { "type": "string", "description": "Store name" },
+        "privacyConfig": { "type": "object", "description": "Privacy and contact configuration (location, maps, phone, hours)" },
+        "enabledCategories": { "type": "object", "description": "Status of enabled / locked categories" },
+        "deletedProductIds": { "type": "array", "description": "List of deleted product IDs" },
         "updatedAt": { "type": "string", "description": "ISO timestamp of last update" }
-      },
-      "required": ["logoUrl"]
+      }
     }
   },
   "firestore": {
@@ -39,7 +40,7 @@
     },
     "/config/{configId}": {
       "schema": "StoreConfig",
-      "description": "Store global configuration and branding"
+      "description": "Store global configuration, location and branding"
     }
   }
 }

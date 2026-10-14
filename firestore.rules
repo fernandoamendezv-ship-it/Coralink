@@ -13,13 +13,12 @@ service cloud.firestore {
         && data.mainCategory is string && data.mainCategory.size() > 0 && data.mainCategory.size() <= 100
         && data.subCategory is string && data.subCategory.size() > 0 && data.subCategory.size() <= 100
         && data.price is number && data.price >= 0
-        && data.image is string && data.image.size() > 0 && data.image.size() <= 2000
+        && data.image is string && data.image.size() <= 5000
         && data.inStock is bool;
     }
 
     function isValidConfig(data) {
-      return data.keys().hasAll(['logoUrl'])
-        && data.logoUrl is string && data.logoUrl.size() > 0 && data.logoUrl.size() <= 2000;
+      return data is map;
     }
 
     // Public catalog read access for customers and devices worldwide
@@ -29,6 +28,7 @@ service cloud.firestore {
       allow delete: if isValidId(productId);
     }
 
+    // Global store configuration (location, legal, logo, locked categories)
     match /config/{configId} {
       allow read: if true;
       allow create, update: if isValidId(configId) && isValidConfig(request.resource.data);

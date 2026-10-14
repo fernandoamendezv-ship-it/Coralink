@@ -546,6 +546,41 @@ app.post('/api/privacy-config', (req, res) => {
   return res.status(400).json({ success: false, message: 'Datos inválidos' });
 });
 
+// Store Settings (logo, enabled categories, general config) API endpoints
+const STORE_SETTINGS_FILE = path.join(__dirname, 'coralink-store-settings.json');
+
+app.get('/api/store-settings', (_req, res) => {
+  try {
+    if (fs.existsSync(STORE_SETTINGS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(STORE_SETTINGS_FILE, 'utf-8'));
+      return res.json({ success: true, settings: data });
+    }
+  } catch (err) {
+    console.warn('Could not read store settings file:', err);
+  }
+  return res.json({ success: false, settings: null });
+});
+
+app.post('/api/store-settings', (req, res) => {
+  try {
+    const payload = req.body;
+    if (payload && typeof payload === 'object') {
+      let existing: any = {};
+      if (fs.existsSync(STORE_SETTINGS_FILE)) {
+        try {
+          existing = JSON.parse(fs.readFileSync(STORE_SETTINGS_FILE, 'utf-8'));
+        } catch {}
+      }
+      const merged = { ...existing, ...payload, updatedAt: new Date().toISOString() };
+      fs.writeFileSync(STORE_SETTINGS_FILE, JSON.stringify(merged, null, 2), 'utf-8');
+      return res.json({ success: true, message: 'Ajustes guardados en el servidor', settings: merged });
+    }
+  } catch (err: any) {
+    console.error('Error saving store settings on server:', err);
+  }
+  return res.status(400).json({ success: false, message: 'Datos inválidos' });
+});
+
 // Vite or Static files handling
 async function startServer() {
   if (!isProduction) {

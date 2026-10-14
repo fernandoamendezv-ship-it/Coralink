@@ -1,3 +1,5 @@
+import { saveStoreSettingsToFirestore } from '../services/firebaseSettingsService';
+
 export interface PrivacyLegalConfig {
   businessName: string;
   address: string;
@@ -14,19 +16,19 @@ export interface PrivacyLegalConfig {
 
 export const DEFAULT_PRIVACY_CONFIG: PrivacyLegalConfig = {
   businessName: 'Coralink',
-  address: 'Corn Island, Región Autónoma de la Costa Caribe Sur (RACCS), República de Nicaragua.',
+  address: 'Corn Island, (RACCS)',
   email: 'fernando.a.mendez.v@gmail.com',
   phone: '+505 82045433',
-  hours: 'Lunes a Sábado, de 8:00 AM a 6:00 PM (Hora estándar de Nicaragua, UTC-6)',
-  version: '2.4',
+  hours: 'Lunes a Sábado, de 9:00 AM a 6:00 PM (Hora estándar de Nicaragua, UTC-6)',
+  version: '2.5',
   lastUpdated: 'Octubre de 2026',
   applicationName: 'Coralink – Catálogo y Tienda de Arte & Personalización Caribeña',
   deletionResponseHours: '48 horas hábiles',
   facebookUrl: 'https://facebook.com/coralinkcornisland',
-  googleMapsUrl: 'https://maps.google.com/?q=Corn+Island,+Costa+Caribe+Sur,+Nicaragua',
+  googleMapsUrl: 'https://maps.app.goo.gl/th6kUrE4PXsG874a6',
 };
 
-const PRIVACY_STORAGE_KEY = 'coralink_privacy_config';
+export const PRIVACY_STORAGE_KEY = 'coralink_privacy_config';
 
 /**
  * Returns current privacy legal configuration from localStorage or defaults.
@@ -49,7 +51,8 @@ export function getPrivacyConfig(): PrivacyLegalConfig {
 }
 
 /**
- * Saves privacy legal configuration to localStorage and dispatches update event.
+ * Saves privacy legal configuration to localStorage, pushes to Firestore for real-time
+ * multi-device synchronization, and dispatches a local update event.
  */
 export function savePrivacyConfig(config: Partial<PrivacyLegalConfig>): PrivacyLegalConfig {
   const current = getPrivacyConfig();
@@ -67,7 +70,14 @@ export function savePrivacyConfig(config: Partial<PrivacyLegalConfig>): PrivacyL
     }
   }
 
-  // Also try to persist on backend server
+  // 1. Sync immediately to Firebase Firestore in the Cloud (cross-device sync)
+  try {
+    saveStoreSettingsToFirestore({ privacyConfig: updated }).catch((err) =>
+      console.warn('Firestore settings sync notice:', err)
+    );
+  } catch (_) {}
+
+  // 2. Also persist on backend server
   try {
     fetch('/api/privacy-config', {
       method: 'POST',
