@@ -253,13 +253,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                 {activeProduct.badge}
               </div>
             ) : null}
-
-            {hasVariants && (
-              <div className="px-2.5 py-1 rounded-lg bg-[#1BA7D9] text-white text-xs font-black uppercase tracking-wider shadow-md flex items-center gap-1">
-                <Sparkles className="w-3 h-3" />
-                <span>{variants.length} Tallas</span>
-              </div>
-            )}
           </div>
 
           {activeProduct.inStock === false && (
@@ -273,9 +266,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
         {/* Right Column: Information & Reviews Tabs */}
         <div className="md:w-1/2 p-5 sm:p-6 flex flex-col overflow-y-auto">
-          {/* Title & Star Rating Summary */}
+          {/* Title & Star Rating Summary - Synchronized with selected variant */}
           <h2 className="text-lg sm:text-xl font-extrabold text-[#0B2545] dark:text-white leading-snug">
-            {hasVariants ? product.title : activeProduct.title}
+            {activeProduct.title}
           </h2>
 
           {/* Active Variant Label */}
@@ -338,10 +331,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-[#FF6B35]" />
-                      <span>Elige tu talla o modelo ({variants.length} disponibles):</span>
+                      <span>Seleccionar Talla o Rango de Medida:</span>
                     </span>
                     <span className="text-[11px] font-bold text-[#FF6B35]">
-                      {selectedVariantIdx + 1} de {variants.length}
+                      {activeProduct.variantName || activeProduct.title}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">

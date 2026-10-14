@@ -14,9 +14,9 @@ const VARIANT_RULES: VariantRule[] = [
     groupTitle: 'Buso Escolar',
     extractVariantName: (title) => {
       const clean = title.replace(/^Buso Escolar\s+/i, '').trim();
-      return clean.startsWith('Talla') ? clean : `Talla ${clean}`;
+      return clean.toLowerCase().startsWith('talla') ? clean : `Tallas ${clean}`;
     },
-    groupDescription: 'Pantalón deportivo escolar con cintura elástica, cordón ajustable y costuras reforzadas para educación física. Disponible en 5 tallas escolares y juveniles.',
+    groupDescription: 'Pantalón deportivo escolar con cintura elástica, cordón ajustable y costuras reforzadas para educación física.',
   },
   // 2. Camisa Escolar Bondi (Camisa Escolar Bondi 2 - 8, 10 - 18, S - L)
   {
@@ -24,7 +24,7 @@ const VARIANT_RULES: VariantRule[] = [
     groupTitle: 'Camisa Escolar Bondi',
     extractVariantName: (title) => {
       const clean = title.replace(/^Camisa Escolar Bondi\s+/i, '').trim();
-      return clean.startsWith('Talla') ? clean : `Talla ${clean}`;
+      return clean.toLowerCase().startsWith('talla') ? clean : `Tallas ${clean}`;
     },
     groupDescription: 'Camisa escolar confeccionada en tela Bondi de alta resistencia, botones reforzados y cuello formal para uniforme.',
   },
@@ -33,17 +33,15 @@ const VARIANT_RULES: VariantRule[] = [
     matchRegex: /^Camisa Blanca\s+/i,
     groupTitle: 'Camisa Blanca Sublimable',
     extractVariantName: (title) => {
-      const clean = title.replace(/^Camisa Blanca\s+/i, '').trim();
-      return clean;
+      return title.replace(/^Camisa Blanca\s+/i, '').trim();
     },
     groupDescription: 'Camisa de tacto algodón 100% poliéster especial para sublimación fotográfica a todo color. Excelente durabilidad y nitidez.',
   },
 ];
 
 /**
- * Groups multiple single-size/single-model products into interactive cards with variants.
- * For example: 5 separate "Buso Escolar" items become 1 interactive card where
- * the customer can slide/swipe and pick between all 5 sizes directly inside the card.
+ * Groups multiple single-size/single-model products into a single card with variants
+ * strictly preserving the original catalog position and sort order (never moving them to the top).
  */
 export function groupProductsWithVariants(
   products: Product[],
@@ -51,98 +49,95 @@ export function groupProductsWithVariants(
 ): Product[] {
   if (!Array.isArray(products) || products.length === 0) return [];
 
-  // Track products that belong to a detected variant rule
-  const groupedBuckets: Record<
-    string,
-    {
-      rule: VariantRule;
-      items: Product[];
-    }
-  > = {};
+  // 1. Identify which products belong to which variant rule
+  const ruleGroups = new Map<string, { rule: VariantRule; items: Product[]; firstIndex: number }>();
 
-  const unassigned: Product[] = [];
+  products.forEach((p, idx) => {
+    // If product already has configured variants, treat as standalone
+    if (p.variants && p.variants.length > 1) return;
 
-  products.forEach((p) => {
-    // If product already has configured variants, keep it as is
-    if (p.variants && p.variants.length > 1) {
-      unassigned.push(p);
-      return;
-    }
-
-    let matchedRule: VariantRule | null = null;
     for (const rule of VARIANT_RULES) {
       if (rule.matchRegex.test(p.title)) {
-        matchedRule = rule;
+        if (!ruleGroups.has(rule.groupTitle)) {
+          ruleGroups.set(rule.groupTitle, { rule, items: [], firstIndex: idx });
+        }
+        ruleGroups.get(rule.groupTitle)!.items.push(p);
         break;
       }
     }
+  });
 
-    if (matchedRule) {
-      if (!groupedBuckets[matchedRule.groupTitle]) {
-        groupedBuckets[matchedRule.groupTitle] = {
-          rule: matchedRule,
-          items: [],
-        };
+  const handledGroups = new Set<string>();
+  const result: Product[] = [];
+
+  // 2. Iterate in EXACT original catalog order
+  for (const p of products) {
+    let matchedGroupTitle: string | null = null;
+    let matchedRule: VariantRule | null = null;
+
+    if (!p.variants || p.variants.length <= 1) {
+      for (const rule of VARIANT_RULES) {
+        if (rule.matchRegex.test(p.title)) {
+          matchedGroupTitle = rule.groupTitle;
+          matchedRule = rule;
+          break;
+        }
       }
-      groupedBuckets[matchedRule.groupTitle].items.push(p);
+    }
+
+    if (matchedGroupTitle && matchedRule) {
+      // If we already placed the unified group for this family, skip subsequent individual items
+      if (handledGroups.has(matchedGroupTitle)) {
+        continue;
+      }
+      handledGroups.add(matchedGroupTitle);
+
+      const groupData = ruleGroups.get(matchedGroupTitle)!;
+      if (groupData.items.length <= 1) {
+        result.push(p);
+        continue;
+      }
+
+      // Enrich variants with their size/variant label
+      const variants: Product[] = groupData.items.map((item) => ({
+        ...item,
+        variantName: item.variantName || matchedRule!.extractVariantName(item.title),
+      }));
+
+      // Sort variants logically by price
+      variants.sort((a, b) => a.price - b.price);
+
+      // If there is an active search query, focus on matching variant
+      let initialIndex = 0;
+      if (searchQuery && searchQuery.trim()) {
+        const q = searchQuery.toLowerCase().trim();
+        const matchIdx = variants.findIndex(
+          (v) =>
+            v.title.toLowerCase().includes(q) ||
+            (v.variantName && v.variantName.toLowerCase().includes(q))
+        );
+        if (matchIdx >= 0) initialIndex = matchIdx;
+      }
+
+      const first = variants[initialIndex] || variants[0];
+      const anyInStock = variants.some((v) => v.inStock !== false);
+
+      // Place the grouped product at its EXACT original position in the catalog
+      result.push({
+        ...first,
+        id: `interactive-${first.id}`,
+        title: matchedGroupTitle,
+        description: matchedRule.groupDescription || first.description,
+        inStock: anyInStock,
+        badge: first.badge || undefined, // No hardcoded "5 Tallas" text
+        variantName: first.variantName,
+        variants,
+        activeVariantIndex: initialIndex,
+      });
     } else {
-      unassigned.push(p);
+      result.push(p);
     }
-  });
+  }
 
-  const consolidated: Product[] = [];
-
-  // Consolidate groups into single interactive products
-  Object.entries(groupedBuckets).forEach(([groupTitle, { rule, items }]) => {
-    if (items.length <= 1) {
-      // If only 1 item in group, leave it as standalone
-      consolidated.push(...items);
-      return;
-    }
-
-    // Enrich each variant with its variantName
-    const variants: Product[] = items.map((item) => ({
-      ...item,
-      variantName: item.variantName || rule.extractVariantName(item.title),
-    }));
-
-    // Sort variants logically (e.g. by price or size numbers)
-    variants.sort((a, b) => a.price - b.price);
-
-    // If there is an active search query, see if one variant specifically matches
-    let initialIndex = 0;
-    if (searchQuery && searchQuery.trim()) {
-      const q = searchQuery.toLowerCase().trim();
-      const matchIdx = variants.findIndex(
-        (v) =>
-          v.title.toLowerCase().includes(q) ||
-          (v.variantName && v.variantName.toLowerCase().includes(q))
-      );
-      if (matchIdx >= 0) {
-        initialIndex = matchIdx;
-      }
-    }
-
-    const first = variants[initialIndex] || variants[0];
-    const anyInStock = variants.some((v) => v.inStock !== false);
-
-    // Create the master interactive product
-    const interactiveProduct: Product = {
-      ...first,
-      id: `interactive-${first.id}`,
-      title: groupTitle,
-      description: rule.groupDescription || first.description,
-      inStock: anyInStock,
-      badge: `${variants.length} Tallas`,
-      variantName: first.variantName,
-      variants,
-      activeVariantIndex: initialIndex,
-    };
-
-    consolidated.push(interactiveProduct);
-  });
-
-  // Combine consolidated groups with standalone products
-  // Maintain catalog order: place grouped products around where their first item was
-  return [...consolidated, ...unassigned];
+  return result;
 }
