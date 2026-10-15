@@ -48,10 +48,23 @@ export function subscribeToFirebaseProducts(
       colRef,
       (snapshot) => {
         if (snapshot.empty) {
-          // First-time run: if collection is empty, seed with initial catalog
+          // If the device is offline or snapshot is from cache, DO NOT treat as empty database!
+          if (typeof navigator !== 'undefined' && !navigator.onLine) {
+            console.debug('Firestore is offline, ignoring empty snapshot to protect catalog.');
+            return;
+          }
+          if (snapshot.metadata.fromCache) {
+            console.debug('Firestore snapshot is from cache, ignoring empty state.');
+            return;
+          }
+
+          // Only seed if verified empty on remote server and client has no saved products
           seedCatalogIfEmpty().then((seeded) => {
             if (seeded && seeded.length > 0) {
-              onUpdate(seeded);
+              const currentRaw = typeof window !== 'undefined' ? localStorage.getItem('coralink_custom_products') : null;
+              if (!currentRaw) {
+                onUpdate(seeded);
+              }
             }
           });
           return;
@@ -82,11 +95,15 @@ export function subscribeToFirebaseProducts(
           }
         });
 
-        // Preserve catalog order based on ID or index
+        // Preserve catalog order based on original index or creation
+        const idIndexMap = new Map<string, number>();
+        INITIAL_PRODUCTS.forEach((p, idx) => idIndexMap.set(p.id, idx));
+
         products.sort((a, b) => {
-          const numA = parseInt(a.id.replace(/\D/g, ''), 10) || 0;
-          const numB = parseInt(b.id.replace(/\D/g, ''), 10) || 0;
-          return numA - numB;
+          const idxA = idIndexMap.has(a.id) ? idIndexMap.get(a.id)! : 9999;
+          const idxB = idIndexMap.has(b.id) ? idIndexMap.get(b.id)! : 9999;
+          if (idxA !== idxB) return idxA - idxB;
+          return a.id.localeCompare(b.id);
         });
 
         onUpdate(products);
@@ -244,35 +261,59 @@ export async function seedCatalogIfEmpty(): Promise<Product[] | null> {
     }
 
     console.log('Seeding initial catalog to Firestore...');
-    const batch = writeBatch(db);
-    INITIAL_PRODUCTS.forEach((product) => {
-      const docRef = doc(db, PRODUCTS_COLLECTION, product.id);
-      const cleanData: Record<string, any> = {
-        id: product.id,
-        title: product.title,
-        mainCategory: product.mainCategory,
-        subCategory: product.subCategory,
-        price: product.price,
-        image: product.image,
-        description: product.description || '',
-        inStock: product.inStock,
-        rating: product.rating ?? 5.0,
-        reviewsCount: product.reviewsCount ?? 24,
-        salesCount: product.salesCount ?? 60,
-        updatedAt: new Date().toISOString(),
-      };
-      if (product.originalPrice) cleanData.originalPrice = product.originalPrice;
-      if (product.featured) cleanData.featured = product.featured;
-      if (product.isFlashDeal !== undefined) cleanData.isFlashDeal = product.isFlashDeal;
-      if (product.badge) cleanData.badge = product.badge;
-      if (product.availableOptions) cleanData.availableOptions = product.availableOptions;
+    const deletedIds = getDeletedProductIds();
 
-      batch.set(docRef, cleanData);
-    });
+    // Prefer client's current customized products if available
+    let sourceProducts = INITIAL_PRODUCTS;
+    if (typeof window !== 'undefined') {
+      try {
+        const rawLocal = localStorage.getItem('coralink_custom_products');
+        if (rawLocal) {
+          const parsed = JSON.parse(rawLocal);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            sourceProducts = parsed;
+          }
+        }
+      } catch (_) {}
+    }
 
-    await batch.commit();
+    const cleanProducts = sourceProducts.filter((p) => p && p.id && !deletedIds.has(p.id));
+
+    const chunkSize = 400;
+    for (let i = 0; i < cleanProducts.length; i += chunkSize) {
+      const chunk = cleanProducts.slice(i, i + chunkSize);
+      const batch = writeBatch(db);
+
+      chunk.forEach((product) => {
+        const docRef = doc(db, PRODUCTS_COLLECTION, product.id);
+        const cleanData: Record<string, any> = {
+          id: product.id,
+          title: product.title,
+          mainCategory: product.mainCategory,
+          subCategory: product.subCategory,
+          price: product.price,
+          image: sanitizeProductImage(product.image, product.title, product.mainCategory),
+          description: product.description || '',
+          inStock: product.inStock,
+          rating: product.rating ?? 5.0,
+          reviewsCount: product.reviewsCount ?? 24,
+          salesCount: product.salesCount ?? 60,
+          updatedAt: new Date().toISOString(),
+        };
+        if (product.originalPrice) cleanData.originalPrice = product.originalPrice;
+        if (product.featured) cleanData.featured = product.featured;
+        if (product.isFlashDeal !== undefined) cleanData.isFlashDeal = product.isFlashDeal;
+        if (product.badge) cleanData.badge = product.badge;
+        if (product.availableOptions) cleanData.availableOptions = product.availableOptions;
+
+        batch.set(docRef, cleanData);
+      });
+
+      await batch.commit();
+    }
+
     console.log('Catalog successfully seeded to Firestore!');
-    return INITIAL_PRODUCTS;
+    return cleanProducts;
   } catch (err) {
     console.warn('Failed to seed catalog to Firestore:', err);
     return null;

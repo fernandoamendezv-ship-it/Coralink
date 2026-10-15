@@ -5,24 +5,56 @@ import { formatDirectImageUrl } from './imageUrlResolver';
 const DELETED_PRODUCTS_KEY = 'coralink_deleted_product_ids';
 
 /**
- * Retrieves the set of permanently deleted product IDs from localStorage.
+ * Hardcoded permanent blacklist of product IDs deleted by the admin.
+ * Guarantees that factory items can never resurrect even if browser storage is cleared.
+ */
+export const PERMANENTLY_DELETED_PRODUCT_IDS: readonly string[] = [
+  'llavero-4',
+  'llavero-6',
+  'llavero-7',
+  'llavero-8',
+  'llavero-11',
+  'llavero-15',
+  'llavero-22',
+  'llavero-23',
+  'llavero-26',
+  'llavero-27',
+  'llavero-28',
+  'llavero-29',
+  'llavero-30',
+  'misc-6',
+  'taza-20',
+];
+
+/**
+ * Retrieves the set of permanently deleted product IDs from localStorage + permanent blacklist.
  */
 export function getDeletedProductIds(): Set<string> {
-  if (typeof window === 'undefined') return new Set();
+  const deletedSet = new Set<string>(PERMANENTLY_DELETED_PRODUCT_IDS);
+  if (typeof window === 'undefined') return deletedSet;
   try {
     const raw = localStorage.getItem(DELETED_PRODUCTS_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
       if (Array.isArray(parsed)) {
-        return new Set(
-          parsed.filter((id) => typeof id === 'string' && id.trim().length > 0)
-        );
+        parsed.forEach((id) => {
+          if (typeof id === 'string' && id.trim().length > 0) deletedSet.add(id);
+        });
+      }
+    }
+    const sessionRaw = sessionStorage.getItem('coralink_deleted_ids_session_backup');
+    if (sessionRaw) {
+      const parsed = JSON.parse(sessionRaw);
+      if (Array.isArray(parsed)) {
+        parsed.forEach((id) => {
+          if (typeof id === 'string' && id.trim().length > 0) deletedSet.add(id);
+        });
       }
     }
   } catch (e) {
     console.warn('Error reading deleted products set:', e);
   }
-  return new Set();
+  return deletedSet;
 }
 
 /**
@@ -62,6 +94,7 @@ export function markProductAsDeleted(productId: string): void {
           sessionStorage.setItem('coralink_custom_products', JSON.stringify(filtered));
         }
       }
+      sessionStorage.setItem('coralink_deleted_ids_session_backup', JSON.stringify(Array.from(deleted)));
     } catch {}
 
     // Clean from cart so cart snapshots cannot restore deleted product
@@ -98,7 +131,6 @@ export function markProductAsDeleted(productId: string): void {
 export function filterOutDeletedProducts(products: Product[]): Product[] {
   if (!Array.isArray(products)) return [];
   const deleted = getDeletedProductIds();
-  if (deleted.size === 0) return products;
   return products.filter((p) => p && p.id && !deleted.has(p.id));
 }
 
@@ -145,6 +177,7 @@ export function isProductCustomized(product: Product, defaultProduct?: Product):
  * 2. If the user already has a saved catalog, missing default products that
  *    were deleted or removed are NOT re-added.
  * 3. User customizations (photos, prices, descriptions, stock) are preserved.
+ * 4. Image links are NEVER wiped or downgraded to placeholder logos.
  */
 export function mergePreservingCustomizations(
   existingProducts: Product[],
@@ -161,8 +194,6 @@ export function mergePreservingCustomizations(
     return defaultProducts.filter((p) => !deletedIds.has(p.id));
   }
 
-  // If the user already has an active catalog, use cleanExisting as the base
-  // and do NOT resurrect items that are missing (since the user may have deleted them)
   const defaultMap = new Map<string, Product>();
   defaultProducts.forEach((d) => {
     if (d && d.id) defaultMap.set(d.id, d);
@@ -171,42 +202,39 @@ export function mergePreservingCustomizations(
   const merged: Product[] = cleanExisting.map((existing) => {
     const def = defaultMap.get(existing.id);
     if (!def) {
-      // User-created product
+      // User-created product (e.g. custom-179...)
       return {
         ...existing,
         rating: existing.rating ?? 5.0,
         reviewsCount: existing.reviewsCount ?? 24,
         salesCount: existing.salesCount ?? 60,
-        image:
-          existing.image && !isReferenceLogo(existing.image)
-            ? existing.image
-            : CORALINK_LOGO_URL,
+        image: existing.image ? formatDirectImageUrl(existing.image) : CORALINK_LOGO_URL,
       };
     }
 
-    const customized = isProductCustomized(existing, def);
-    if (customized) {
-      const formatted = existing.image ? formatDirectImageUrl(existing.image) : '';
-      let finalImage =
-        formatted && !isReferenceLogo(formatted) ? formatted : CORALINK_LOGO_URL;
+    const formattedExisting = existing.image ? formatDirectImageUrl(existing.image) : '';
+    const formattedDef = def.image ? formatDirectImageUrl(def.image) : '';
 
-      if (def.image && !isReferenceLogo(def.image) && isReferenceLogo(existing.image)) {
-        finalImage = def.image;
+    // Determine the best image:
+    // 1. If existing has a real photo, preserve it!
+    // 2. If existing had a fallback/reference logo and def has a real photo, upgrade to def's real photo!
+    // 3. Otherwise use whatever is available.
+    let finalImage = formattedExisting;
+    if (!finalImage || isReferenceLogo(finalImage)) {
+      if (formattedDef && !isReferenceLogo(formattedDef)) {
+        finalImage = formattedDef;
+      } else {
+        finalImage = finalImage || formattedDef || CORALINK_LOGO_URL;
       }
-
-      return {
-        ...def,
-        ...existing,
-        rating: existing.rating ?? def.rating ?? 5.0,
-        reviewsCount: existing.reviewsCount ?? def.reviewsCount ?? 24,
-        salesCount: existing.salesCount ?? 60,
-        image: finalImage,
-      };
     }
 
     return {
       ...def,
       ...existing,
+      rating: existing.rating ?? def.rating ?? 5.0,
+      reviewsCount: existing.reviewsCount ?? def.reviewsCount ?? 24,
+      salesCount: existing.salesCount ?? def.salesCount ?? 60,
+      image: finalImage,
     };
   });
 
@@ -275,7 +303,18 @@ export function scanAndRecoverCustomProducts(
     console.warn('Error reading coralink_custom_products_backup:', e);
   }
 
-  // 3. Cart storage (items added to cart contain product snapshots)
+  // 3. Session backup storage
+  try {
+    const rawSessionBackup = sessionStorage.getItem('coralink_custom_products_session_backup');
+    if (rawSessionBackup) {
+      const parsed = JSON.parse(rawSessionBackup);
+      if (Array.isArray(parsed)) parsed.forEach(ingest);
+    }
+  } catch (e) {
+    console.warn('Error reading coralink_custom_products_session_backup:', e);
+  }
+
+  // 4. Cart storage (items added to cart contain product snapshots)
   try {
     const rawCart = localStorage.getItem('coralink_cart');
     if (rawCart) {
@@ -290,7 +329,7 @@ export function scanAndRecoverCustomProducts(
     console.warn('Error reading coralink_cart:', e);
   }
 
-  // 4. Session storage (in case a tab had an active session)
+  // 5. Session storage
   try {
     const rawSession = sessionStorage.getItem('coralink_custom_products');
     if (rawSession) {

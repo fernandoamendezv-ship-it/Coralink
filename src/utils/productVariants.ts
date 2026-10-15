@@ -14,9 +14,15 @@ const VARIANT_RULES: VariantRule[] = [
     groupTitle: 'Buso Escolar',
     extractVariantName: (title) => {
       const clean = title.replace(/^Buso Escolar\s+/i, '').trim();
+      if (clean === '4 - 8') return 'Talla 4 - 8 (Tallas 4, 6 y 8)';
+      if (clean === '10 - 12') return 'Talla 10 - 12 (Tallas 10 y 12)';
+      if (clean === '14 - 16') return 'Talla 14 - 16 (Tallas 14 y 16)';
+      if (clean.toLowerCase() === 's - l') return 'Talla S - L (Tallas S, M y L)';
+      if (clean.toUpperCase() === 'XL') return 'Talla XL';
       return clean.toLowerCase().startsWith('talla') ? clean : `Tallas ${clean}`;
     },
-    groupDescription: 'Pantalón deportivo escolar con cintura elástica, cordón ajustable y costuras reforzadas para educación física.',
+    groupDescription:
+      'Pantalón deportivo escolar con cintura elástica, cordón ajustable y costuras reforzadas para educación física.',
   },
   // 2. Camisa Escolar Bondi (Camisa Escolar Bondi 2 - 8, 10 - 18, S - L)
   {
@@ -24,9 +30,13 @@ const VARIANT_RULES: VariantRule[] = [
     groupTitle: 'Camisa Escolar Bondi',
     extractVariantName: (title) => {
       const clean = title.replace(/^Camisa Escolar Bondi\s+/i, '').trim();
+      if (clean === '2 - 8') return 'Talla 2 - 8 (Tallas 2 a 8)';
+      if (clean === '10 - 18') return 'Talla 10 - 18 (Tallas 10 a 18)';
+      if (clean.toLowerCase() === 's - l') return 'Talla S - L (Tallas S, M y L)';
       return clean.toLowerCase().startsWith('talla') ? clean : `Tallas ${clean}`;
     },
-    groupDescription: 'Camisa escolar confeccionada en tela Bondi de alta resistencia, botones reforzados y cuello formal para uniforme.',
+    groupDescription:
+      'Camisa escolar confeccionada en tela Bondi de alta resistencia, botones reforzados y cuello formal para uniforme.',
   },
   // 3. Camisa Blanca Sublimable (Infantil, Juvenil, Adulto, Tallas Grandes)
   {
@@ -35,7 +45,8 @@ const VARIANT_RULES: VariantRule[] = [
     extractVariantName: (title) => {
       return title.replace(/^Camisa Blanca\s+/i, '').trim();
     },
-    groupDescription: 'Camisa de tacto algodón 100% poliéster especial para sublimación fotográfica a todo color. Excelente durabilidad y nitidez.',
+    groupDescription:
+      'Camisa de tacto algodón 100% poliéster especial para sublimación fotográfica a todo color. Excelente durabilidad y nitidez.',
   },
 ];
 
@@ -129,7 +140,7 @@ export function groupProductsWithVariants(
         title: matchedGroupTitle,
         description: matchedRule.groupDescription || first.description,
         inStock: anyInStock,
-        badge: first.badge || undefined, // No hardcoded "5 Tallas" text
+        badge: first.badge || undefined, // Strictly never hardcode "5 Tallas"
         variantName: first.variantName,
         variants,
         activeVariantIndex: initialIndex,

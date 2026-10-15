@@ -1,5 +1,5 @@
 // Coralink Official PWA Service Worker
-const CACHE_NAME = 'coralink-cache-v3';
+const CACHE_NAME = 'coralink-cache-v4';
 
 const PRECACHE_ASSETS = [
   '/',
@@ -70,18 +70,32 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Stale-While-Revalidate for images, fonts, and assets
+  // Stale-While-Revalidate for images (including Postimages CDN), fonts, and assets
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
-      const fetchPromise = fetch(request).then((networkResponse) => {
-        if (networkResponse && networkResponse.status === 200 && networkResponse.type === 'basic') {
-          const responseClone = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, responseClone);
-          });
-        }
-        return networkResponse;
-      }).catch(() => cachedResponse);
+      const fetchPromise = fetch(request)
+        .then((networkResponse) => {
+          if (
+            networkResponse &&
+            (networkResponse.status === 200 || networkResponse.type === 'opaque') &&
+            (networkResponse.type === 'basic' || networkResponse.type === 'cors' || networkResponse.type === 'opaque')
+          ) {
+            const responseClone = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => {
+              cache.put(request, responseClone);
+            });
+          }
+          return networkResponse;
+        })
+        .catch(async () => {
+          if (cachedResponse) return cachedResponse;
+          // If image request fails offline and not in cache, fallback to local logo
+          if (request.destination === 'image') {
+            const fallback = await caches.match('/LG1.png');
+            if (fallback) return fallback;
+          }
+          return cachedResponse;
+        });
 
       return cachedResponse || fetchPromise;
     })

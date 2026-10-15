@@ -1,5 +1,13 @@
 import { initializeApp, getApps, FirebaseApp } from 'firebase/app';
-import { getFirestore, doc, getDocFromServer, Firestore } from 'firebase/firestore';
+import {
+  initializeFirestore,
+  getFirestore,
+  persistentLocalCache,
+  persistentMultipleTabManager,
+  doc,
+  getDocFromServer,
+  Firestore,
+} from 'firebase/firestore';
 import rawConfig from '../firebase-applet-config.json';
 
 const firebaseConfig = {
@@ -22,12 +30,32 @@ try {
 
 let firestoreInstance: Firestore;
 try {
-  firestoreInstance = firebaseConfig.firestoreDatabaseId
-    ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
-    : getFirestore(app);
-} catch (err) {
-  console.warn('Error creating Firestore with custom databaseId, falling back to default:', err);
-  firestoreInstance = getFirestore(app);
+  // Enable persistent IndexedDB offline cache across multiple tabs
+  if (typeof window !== 'undefined') {
+    firestoreInstance = initializeFirestore(
+      app,
+      {
+        localCache: persistentLocalCache({
+          tabManager: persistentMultipleTabManager(),
+        }),
+      },
+      firebaseConfig.firestoreDatabaseId
+    );
+  } else {
+    firestoreInstance = firebaseConfig.firestoreDatabaseId
+      ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+      : getFirestore(app);
+  }
+} catch (err: any) {
+  console.warn('initializeFirestore with offline cache notice:', err);
+  try {
+    firestoreInstance = firebaseConfig.firestoreDatabaseId
+      ? getFirestore(app, firebaseConfig.firestoreDatabaseId)
+      : getFirestore(app);
+  } catch (fallbackErr) {
+    console.warn('Falling back to default getFirestore instance:', fallbackErr);
+    firestoreInstance = getFirestore(app);
+  }
 }
 
 export const db = firestoreInstance;
@@ -49,5 +77,4 @@ export async function validateFirestoreConnection(): Promise<boolean> {
   }
 }
 
-// Connection check helper (available on-demand, not running automatically on mount)
 export default app;

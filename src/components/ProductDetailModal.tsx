@@ -241,6 +241,13 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </>
           )}
 
+          {/* Product Title Badge on Image (Synchronized with selected variant) */}
+          <div className="absolute bottom-3 inset-x-4 z-10 py-1.5 px-3 bg-slate-950/85 backdrop-blur-md text-center rounded-xl border border-white/15 shadow-md">
+            <span className="text-xs font-bold text-white tracking-wide truncate block">
+              {activeProduct.title}
+            </span>
+          </div>
+
           {/* Badge: Agotado or Promo */}
           <div className="absolute top-4 left-4 z-10 flex flex-col gap-1 items-start">
             {activeProduct.inStock === false ? (
@@ -256,7 +263,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           </div>
 
           {activeProduct.inStock === false && (
-            <div className="absolute inset-x-4 bottom-4 py-1.5 bg-black/80 backdrop-blur-xs text-center rounded-xl border border-rose-500/40">
+            <div className="absolute inset-x-4 bottom-12 py-1.5 bg-black/80 backdrop-blur-xs text-center rounded-xl border border-rose-500/40">
               <span className="text-xs font-black tracking-widest text-rose-300 uppercase">
                 Producto Actualmente Agotado
               </span>
@@ -266,20 +273,39 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
         {/* Right Column: Information & Reviews Tabs */}
         <div className="md:w-1/2 p-5 sm:p-6 flex flex-col overflow-y-auto">
-          {/* Title & Star Rating Summary - Synchronized with selected variant */}
-          <h2 className="text-lg sm:text-xl font-extrabold text-[#0B2545] dark:text-white leading-snug">
-            {activeProduct.title}
-          </h2>
+          {/* Title & Price Header: Price placed right beside product name so it never gets lost */}
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex-1">
+              <h2 className="text-lg sm:text-xl font-extrabold text-[#0B2545] dark:text-white leading-snug">
+                {activeProduct.title}
+              </h2>
 
-          {/* Active Variant Label */}
-          {hasVariants && (
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#1BA7D9] mt-1">
-              <span className="w-2 h-2 rounded-full bg-[#1BA7D9]" />
-              <span>
-                Seleccionado: {activeProduct.variantName || activeProduct.title}
-              </span>
+              {/* Active Variant Label */}
+              {hasVariants && (
+                <div className="flex items-center gap-1.5 text-xs font-bold text-[#1BA7D9] mt-1">
+                  <span className="w-2 h-2 rounded-full bg-[#1BA7D9]" />
+                  <span>
+                    Seleccionado: {activeProduct.variantName || activeProduct.title}
+                  </span>
+                </div>
+              )}
             </div>
-          )}
+
+            {/* Price placed right beside product name */}
+            <div className="text-right shrink-0 pl-2">
+              <div className="flex items-baseline text-[#FF6B35]">
+                <span className="text-xs font-black mr-0.5">C$</span>
+                <span className="text-xl sm:text-2xl font-black tracking-tight">
+                  {activeProduct.price.toLocaleString('es-NI')}
+                </span>
+              </div>
+              {activeProduct.originalPrice && activeProduct.originalPrice > activeProduct.price && (
+                <span className="text-[11px] text-slate-400 line-through block leading-tight">
+                  C$ {activeProduct.originalPrice.toLocaleString('es-NI')}
+                </span>
+              )}
+            </div>
+          </div>
 
           {/* Stock Indicator Status */}
           <div className="mt-2">
@@ -370,32 +396,6 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                   </div>
                 </div>
               )}
-
-              {/* Price Box */}
-              <div className="mt-3 p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-700 flex items-baseline justify-between">
-                <div>
-                  <span className="text-[11px] text-slate-400 dark:text-slate-400 block font-medium">
-                    Precio Unitario ({activeProduct.variantName || 'Estándar'})
-                  </span>
-                  <div className="flex items-baseline text-[#FF6B35]">
-                    <span className="text-xs font-black mr-1">C$</span>
-                    <span className="text-xl sm:text-2xl font-black">
-                      {activeProduct.price.toLocaleString('es-NI')}
-                    </span>
-                  </div>
-                </div>
-                {activeProduct.originalPrice && activeProduct.originalPrice > activeProduct.price && (
-                  <div className="text-right">
-                    <span className="text-[11px] text-slate-400 line-through block">
-                      C$ {activeProduct.originalPrice.toLocaleString('es-NI')}
-                    </span>
-                    <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 bg-emerald-100/70 dark:bg-emerald-950/70 px-2 py-0.5 rounded-full">
-                      Ahorras C${' '}
-                      {(activeProduct.originalPrice - activeProduct.price).toLocaleString('es-NI')}
-                    </span>
-                  </div>
-                )}
-              </div>
 
               {/* Description */}
               <p className="mt-3 text-xs sm:text-sm text-slate-600 dark:text-slate-300 leading-relaxed">

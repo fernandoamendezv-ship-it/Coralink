@@ -55,13 +55,55 @@ export default defineConfig(() => {
           clientsClaim: true,
           runtimeCaching: [
             {
+              urlPattern: /^https:\/\/i\.postimg\.cc\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'postimages-cdn-cache',
+                expiration: {
+                  maxEntries: 250,
+                  maxAgeSeconds: 60 * 60 * 24 * 30, // 30 days
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+            {
+              urlPattern: /^https:\/\/lh3\.googleusercontent\.com\/.*/i,
+              handler: 'CacheFirst',
+              options: {
+                cacheName: 'googleusercontent-cache',
+                expiration: {
+                  maxEntries: 100,
+                  maxAgeSeconds: 60 * 60 * 24 * 30,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+            {
+              urlPattern: /\/uploads\/.*/i,
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'uploads-cache',
+                expiration: {
+                  maxEntries: 100,
+                  maxAgeSeconds: 60 * 60 * 24 * 30,
+                },
+                cacheableResponse: {
+                  statuses: [0, 200],
+                },
+              },
+            },
+            {
               urlPattern: /^https:\/\/images\.unsplash\.com\/.*/i,
               handler: 'StaleWhileRevalidate',
               options: {
                 cacheName: 'unsplash-images-cache',
                 expiration: {
                   maxEntries: 100,
-                  maxAgeSeconds: 60 * 60 * 24 * 3, // 3 days
+                  maxAgeSeconds: 60 * 60 * 24 * 7,
                 },
                 cacheableResponse: {
                   statuses: [0, 200],

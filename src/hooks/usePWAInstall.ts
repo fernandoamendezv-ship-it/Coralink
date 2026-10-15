@@ -85,28 +85,35 @@ export function usePWAInstall() {
     }
   }, []);
 
-  // Force clean update: preserves user's custom products and photos, updates Service Worker and caches
+  // Safe update: preserves user's custom products and photos, updates Service Worker smoothly
   const updateApp = useCallback(async () => {
     if (typeof window === 'undefined') return;
     setIsUpdating(true);
     try {
+      // 1. Double backup all critical user data across localStorage and sessionStorage
       const currentProducts = localStorage.getItem('coralink_custom_products');
       if (currentProducts) {
         localStorage.setItem('coralink_custom_products_backup', currentProducts);
+        try {
+          sessionStorage.setItem('coralink_custom_products_session_backup', currentProducts);
+        } catch (_) {}
       }
 
-      if ('caches' in window) {
-        const cacheNames = await caches.keys();
-        await Promise.all(cacheNames.map((name) => caches.delete(name)));
+      const deletedIds = localStorage.getItem('coralink_deleted_product_ids');
+      if (deletedIds) {
+        try {
+          sessionStorage.setItem('coralink_deleted_ids_session_backup', deletedIds);
+        } catch (_) {}
       }
 
+      // 2. Tell waiting service worker to activate without blowing away image cache
       if ('serviceWorker' in navigator) {
         const reg = await navigator.serviceWorker.getRegistration();
         if (reg?.waiting) {
           reg.waiting.postMessage({ type: 'SKIP_WAITING' });
         }
-        if (reg) {
-          await reg.update();
+        if (reg && navigator.onLine) {
+          await reg.update().catch(() => {});
         }
       }
     } catch (e) {

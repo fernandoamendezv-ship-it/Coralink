@@ -423,7 +423,7 @@ app.post('/api/products', async (req, res) => {
     return res.status(400).json({ success: false, message: 'Invalid products array' });
   }
 
-  // Auto-download any Google Drive or remote images to local /uploads so mobile devices never get blocked
+  // Auto-backup any Google Drive or remote images to local /uploads while keeping high-speed CDN URLs
   for (const p of products) {
     if (p && p.image && (p.image.includes('googleusercontent.com') || p.image.includes('drive.google.com'))) {
       try {
@@ -447,9 +447,8 @@ app.post('/api/products', async (req, res) => {
             if (!fs.existsSync(distDir)) fs.mkdirSync(distDir, { recursive: true });
             fs.writeFileSync(path.join(distDir, safeName), buffer);
           }
-          
-          p.image = `/uploads/${safeName}`;
-          console.log(`Auto-cached drive image for product ${p.id} to /uploads/${safeName}`);
+          // Do NOT overwrite p.image with local /uploads/ unless it was an inaccessible private URL
+          // Preserving the Google CDN / Postimages URL ensures mobile devices outside local network can render it
         }
       } catch (err) {
         console.warn('Could not auto-cache drive image:', err);
