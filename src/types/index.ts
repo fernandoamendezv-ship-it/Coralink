@@ -22,6 +22,7 @@ export interface Product {
   userRating?: number;
   badge?: string;
   inStock: boolean;
+  stock?: number; // Available inventory count (admin only)
   featured?: boolean;
   isFlashDeal?: boolean;
   availableOptions?: {

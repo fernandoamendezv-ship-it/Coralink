@@ -7,33 +7,76 @@ interface VariantRule {
   groupDescription?: string;
 }
 
+/**
+ * Eliminates duplicate variant name prefixes such as:
+ * "Tallas (Tallas 4, 6 y 8)" -> "(Tallas 4, 6 y 8)"
+ * "Talla 4 - 8 (Tallas 4, 6 y 8)" -> "(Tallas 4, 6 y 8)"
+ */
+export function cleanVariantName(name: string = ''): string {
+  let cleaned = name.trim();
+  // Strip duplicate "Tallas (Tallas ...)" or "Talla X - Y (Tallas ...)"
+  cleaned = cleaned.replace(/^Tallas?\s*\((Tallas?[^)]+)\)/i, '($1)');
+  cleaned = cleaned.replace(/^Talla\s+[^()]+\s*\((Tallas?[^)]+)\)/i, '($1)');
+  // If wrapped in double "Tallas" inside parentheses
+  cleaned = cleaned.replace(/\(Tallas?\s+(Tallas?[^)]+)\)/i, '($1)');
+  return cleaned;
+}
+
+/**
+ * Calculates the price range across all grouped variants.
+ */
+export function getVariantPriceRange(variants?: Product[], defaultPrice: number = 0) {
+  if (!variants || variants.length <= 1) {
+    return {
+      minPrice: defaultPrice,
+      maxPrice: defaultPrice,
+      hasRange: false,
+      label: `C$ ${defaultPrice.toLocaleString('es-NI')}`,
+    };
+  }
+
+  const prices = variants.map((v) => (typeof v.price === 'number' ? v.price : 0));
+  const minPrice = Math.min(...prices);
+  const maxPrice = Math.max(...prices);
+  const hasRange = minPrice < maxPrice;
+
+  return {
+    minPrice,
+    maxPrice,
+    hasRange,
+    label: hasRange
+      ? `C$ ${minPrice.toLocaleString('es-NI')} - ${maxPrice.toLocaleString('es-NI')}`
+      : `C$ ${minPrice.toLocaleString('es-NI')}`,
+  };
+}
+
 const VARIANT_RULES: VariantRule[] = [
-  // 1. Busos Escolares (Buso Escolar 4 - 8, 10 - 12, 14 - 16, S - L, XL)
+  // 1. Busos Escolares: Clean single labels without duplicate "Tallas (Tallas ...)"
   {
     matchRegex: /^Buso Escolar\s+/i,
     groupTitle: 'Buso Escolar',
     extractVariantName: (title) => {
       const clean = title.replace(/^Buso Escolar\s+/i, '').trim();
-      if (clean === '4 - 8') return 'Talla 4 - 8 (Tallas 4, 6 y 8)';
-      if (clean === '10 - 12') return 'Talla 10 - 12 (Tallas 10 y 12)';
-      if (clean === '14 - 16') return 'Talla 14 - 16 (Tallas 14 y 16)';
-      if (clean.toLowerCase() === 's - l') return 'Talla S - L (Tallas S, M y L)';
+      if (clean === '4 - 8') return '(Tallas 4, 6 y 8)';
+      if (clean === '10 - 12') return '(Tallas 10 y 12)';
+      if (clean === '14 - 16') return '(Tallas 14 y 16)';
+      if (clean.toLowerCase() === 's - l') return '(Tallas S, M y L)';
       if (clean.toUpperCase() === 'XL') return 'Talla XL';
-      return clean.toLowerCase().startsWith('talla') ? clean : `Tallas ${clean}`;
+      return clean.toLowerCase().startsWith('talla') ? clean : `(Tallas ${clean})`;
     },
     groupDescription:
       'Pantalón deportivo escolar con cintura elástica, cordón ajustable y costuras reforzadas para educación física.',
   },
-  // 2. Camisa Escolar Bondi (Camisa Escolar Bondi 2 - 8, 10 - 18, S - L)
+  // 2. Camisa Escolar Bondi
   {
     matchRegex: /^Camisa Escolar Bondi\s+/i,
     groupTitle: 'Camisa Escolar Bondi',
     extractVariantName: (title) => {
       const clean = title.replace(/^Camisa Escolar Bondi\s+/i, '').trim();
-      if (clean === '2 - 8') return 'Talla 2 - 8 (Tallas 2 a 8)';
-      if (clean === '10 - 18') return 'Talla 10 - 18 (Tallas 10 a 18)';
-      if (clean.toLowerCase() === 's - l') return 'Talla S - L (Tallas S, M y L)';
-      return clean.toLowerCase().startsWith('talla') ? clean : `Tallas ${clean}`;
+      if (clean === '2 - 8') return '(Tallas 2 a 8)';
+      if (clean === '10 - 18') return '(Tallas 10 a 18)';
+      if (clean.toLowerCase() === 's - l') return '(Tallas S, M y L)';
+      return clean.toLowerCase().startsWith('talla') ? clean : `(Tallas ${clean})`;
     },
     groupDescription:
       'Camisa escolar confeccionada en tela Bondi de alta resistencia, botones reforzados y cuello formal para uniforme.',
@@ -112,7 +155,9 @@ export function groupProductsWithVariants(
       // Enrich variants with their size/variant label
       const variants: Product[] = groupData.items.map((item) => ({
         ...item,
-        variantName: item.variantName || matchedRule!.extractVariantName(item.title),
+        variantName: cleanVariantName(
+          item.variantName || matchedRule!.extractVariantName(item.title)
+        ),
       }));
 
       // Sort variants logically by price

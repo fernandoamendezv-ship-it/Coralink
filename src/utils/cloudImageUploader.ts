@@ -8,16 +8,28 @@ export interface CloudUploadResult {
   message: string;
 }
 
+import { applyWatermarkToImage } from './watermark';
+
 /**
- * Compresses an image file on the client into WebP or JPEG with max dimensions and target quality
- * to guarantee lightweight transfer (<150KB) and prevent storage errors.
+ * Compresses an image file on the client into WebP or JPEG with max dimensions, target quality,
+ * and automatically applies the official Coralink logo watermark.
  */
 export async function compressImage(
   file: File,
   maxWidth = 1400,
   maxHeight = 1400,
-  quality = 0.86
+  quality = 0.86,
+  withWatermark = true
 ): Promise<string> {
+  if (withWatermark) {
+    try {
+      const watermarked = await applyWatermarkToImage(file, maxWidth, maxHeight, quality);
+      if (watermarked) return watermarked;
+    } catch (e) {
+      console.warn('Fallback standard compression notice:', e);
+    }
+  }
+
   return new Promise((resolve) => {
     const reader = new FileReader();
     reader.onload = (e) => {

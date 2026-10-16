@@ -5,6 +5,8 @@ import { StarRating } from './StarRating';
 import { motion } from 'framer-motion';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
 import { formatDirectImageUrl } from '../utils/imageUrlResolver';
+import { getVariantPriceRange } from '../utils/productVariants';
+import { WatermarkOverlay } from './WatermarkOverlay';
 
 interface ProductCardProps {
   product: Product;
@@ -14,6 +16,8 @@ interface ProductCardProps {
   onDirectWhatsApp: (product: Product) => void;
   isFavorite?: boolean;
   onToggleFavorite?: (productId: string) => void;
+  isAdmin?: boolean;
+  onUpdateStock?: (productId: string, newStock: number) => void;
 }
 
 export const ProductCard: React.FC<ProductCardProps> = ({
@@ -24,7 +28,26 @@ export const ProductCard: React.FC<ProductCardProps> = ({
   onDirectWhatsApp,
   isFavorite = false,
   onToggleFavorite,
+  isAdmin = false,
+  onUpdateStock,
 }) => {
+  const priceRange = getVariantPriceRange(
+    product.variants,
+    typeof product.price === 'number' ? product.price : 0
+  );
+
+  const [stockInput, setStockInput] = React.useState<string>(() => {
+    if (typeof product.stock === 'number') return String(product.stock);
+    return product.inStock === false ? '0' : '10';
+  });
+
+  React.useEffect(() => {
+    if (typeof product.stock === 'number') {
+      setStockInput(String(product.stock));
+    } else {
+      setStockInput(product.inStock === false ? '0' : '10');
+    }
+  }, [product.stock, product.inStock]);
   return (
     <motion.div
       initial={{ opacity: 0, y: 24, scale: 0.98 }}
@@ -48,6 +71,7 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             src={formatDirectImageUrl(product.image)}
             alt={product.title}
             loading="lazy"
+            referrerPolicy="no-referrer"
             className={`w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ${
               product.inStock === false ? 'grayscale-[35%] opacity-85' : ''
             }`}
@@ -97,6 +121,11 @@ export const ProductCard: React.FC<ProductCardProps> = ({
           </div>
         )}
 
+        {/* Coralink Watermark on all catalog photos */}
+        {!isReferenceLogo(product.image) && (
+          <WatermarkOverlay size="xs" position="bottom-right" />
+        )}
+
         {/* Favorite Button (Top Right) */}
         {onToggleFavorite && (
           <button
@@ -136,12 +165,14 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             {product.title}
           </h3>
 
-          {/* Price placed right beside the product name */}
+          {/* Price placed right beside the product name (Price range for grouped variants) */}
           <div className="flex flex-col items-end shrink-0 text-right pl-1">
             <div className="flex items-baseline text-[#FF6B35]">
               <span className="text-[10px] sm:text-xs font-black mr-0.5">C$</span>
-              <span className="text-sm sm:text-base font-black tracking-tight">
-                {(typeof product.price === 'number' ? product.price : 0).toLocaleString('es-NI')}
+              <span className="text-sm sm:text-base font-black tracking-tight whitespace-nowrap">
+                {priceRange.hasRange
+                  ? `${priceRange.minPrice.toLocaleString('es-NI')} - ${priceRange.maxPrice.toLocaleString('es-NI')}`
+                  : (typeof product.price === 'number' ? product.price : 0).toLocaleString('es-NI')}
               </span>
             </div>
 
@@ -229,6 +260,40 @@ export const ProductCard: React.FC<ProductCardProps> = ({
             </>
           )}
         </div>
+
+        {/* Admin-only Stock Management: strictly hidden from regular visitors */}
+        {isAdmin && (
+          <div
+            onClick={(e) => e.stopPropagation()}
+            className="mt-2.5 pt-2 border-t border-dashed border-amber-300 dark:border-amber-700/60 bg-amber-50/80 dark:bg-amber-950/40 -mx-3 -mb-3 p-2 rounded-b-2xl flex items-center justify-between gap-1.5"
+            title="Panel de inventario exclusivo para el administrador"
+          >
+            <div className="flex items-center gap-1.5 min-w-0">
+              <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse shrink-0" />
+              <span className="text-[10px] font-black uppercase tracking-wider text-amber-900 dark:text-amber-200 truncate">
+                Stock Disp:
+              </span>
+            </div>
+            <div className="flex items-center gap-1 shrink-0">
+              <input
+                type="number"
+                min="0"
+                value={stockInput}
+                onChange={(e) => {
+                  const val = e.target.value;
+                  setStockInput(val);
+                  const parsed = parseInt(val, 10);
+                  if (!isNaN(parsed) && parsed >= 0 && onUpdateStock) {
+                    onUpdateStock(product.id, parsed);
+                  }
+                }}
+                className="w-14 px-1.5 py-0.5 text-xs font-black text-center rounded-lg border border-amber-300 dark:border-amber-600 bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-2xs focus:ring-1 focus:ring-amber-500 focus:outline-none"
+                placeholder="0"
+              />
+              <span className="text-[10px] font-bold text-amber-800 dark:text-amber-300">uds</span>
+            </div>
+          </div>
+        )}
       </div>
     </motion.div>
   );

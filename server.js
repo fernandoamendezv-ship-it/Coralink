@@ -726,35 +726,16 @@ app.post("/api/upload", async (req, res) => {
     } catch (e) {
       console.warn("Could not sync to dist/uploads:", e);
     }
-    let directUrl = `/uploads/${safeName}`;
-    try {
-      const formData = new FormData();
-      formData.append("key", "6d207e02198a847aa98d0a2a901485a5");
-      formData.append("action", "upload");
-      formData.append("source", base64Data);
-      formData.append("format", "json");
-      const cloudRes = await fetch("https://freeimage.host/api/1/upload", {
-        method: "POST",
-        body: formData
-      });
-      if (cloudRes.ok) {
-        const cloudData = await cloudRes.json();
-        if (cloudData.status_code === 200 && cloudData.image?.url) {
-          directUrl = cloudData.image.url;
-          console.log(`Successfully uploaded user photo to cloud CDN: ${directUrl}`);
-        }
-      }
-    } catch (cloudErr) {
-      console.warn("Cloud CDN upload notice (using local /uploads/):", cloudErr);
-    }
+    const directUrl = `/uploads/${safeName}`;
+    const fullUrl = `${req.protocol}://${req.get("host")}${directUrl}`;
     return res.json({
       success: true,
       url: directUrl,
-      fullUrl: directUrl.startsWith("http") ? directUrl : `${req.protocol}://${req.get("host")}${directUrl}`,
+      fullUrl,
       directUrl,
-      localUrl: `/uploads/${safeName}`,
+      localUrl: directUrl,
       filename: safeName,
-      message: "\xA1Foto subida y seleccionada con \xE9xito!"
+      message: "\xA1Foto guardada y seleccionada con \xE9xito!"
     });
   } catch (err) {
     console.error("Error uploading image:", err);
@@ -793,8 +774,6 @@ app.post("/api/products", async (req, res) => {
             if (!fs.existsSync(distDir)) fs.mkdirSync(distDir, { recursive: true });
             fs.writeFileSync(path.join(distDir, safeName), buffer);
           }
-          p.image = `/uploads/${safeName}`;
-          console.log(`Auto-cached drive image for product ${p.id} to /uploads/${safeName}`);
         }
       } catch (err) {
         console.warn("Could not auto-cache drive image:", err);
@@ -850,6 +829,62 @@ export const INITIAL_PRODUCTS: Product[] = ${JSON.stringify(remaining, null, 2)}
   }
   console.log(`Backend confirmed deletion of product: ${id}`);
   res.json({ success: true, message: `Product ${id} permanently deleted` });
+});
+var PRIVACY_FILE = path.join(__dirname, "coralink-privacy-config.json");
+app.get("/api/privacy-config", (_req, res) => {
+  try {
+    if (fs.existsSync(PRIVACY_FILE)) {
+      const data = JSON.parse(fs.readFileSync(PRIVACY_FILE, "utf-8"));
+      return res.json({ success: true, config: data });
+    }
+  } catch (err) {
+    console.warn("Could not read privacy config file:", err);
+  }
+  return res.json({ success: false, config: null });
+});
+app.post("/api/privacy-config", (req, res) => {
+  try {
+    const config = req.body;
+    if (config && typeof config === "object") {
+      fs.writeFileSync(PRIVACY_FILE, JSON.stringify(config, null, 2), "utf-8");
+      return res.json({ success: true, message: "Configuraci\xF3n guardada en el servidor" });
+    }
+  } catch (err) {
+    console.error("Error saving privacy config on server:", err);
+  }
+  return res.status(400).json({ success: false, message: "Datos inv\xE1lidos" });
+});
+var STORE_SETTINGS_FILE = path.join(__dirname, "coralink-store-settings.json");
+app.get("/api/store-settings", (_req, res) => {
+  try {
+    if (fs.existsSync(STORE_SETTINGS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(STORE_SETTINGS_FILE, "utf-8"));
+      return res.json({ success: true, settings: data });
+    }
+  } catch (err) {
+    console.warn("Could not read store settings file:", err);
+  }
+  return res.json({ success: false, settings: null });
+});
+app.post("/api/store-settings", (req, res) => {
+  try {
+    const payload = req.body;
+    if (payload && typeof payload === "object") {
+      let existing = {};
+      if (fs.existsSync(STORE_SETTINGS_FILE)) {
+        try {
+          existing = JSON.parse(fs.readFileSync(STORE_SETTINGS_FILE, "utf-8"));
+        } catch {
+        }
+      }
+      const merged = { ...existing, ...payload, updatedAt: (/* @__PURE__ */ new Date()).toISOString() };
+      fs.writeFileSync(STORE_SETTINGS_FILE, JSON.stringify(merged, null, 2), "utf-8");
+      return res.json({ success: true, message: "Ajustes guardados en el servidor", settings: merged });
+    }
+  } catch (err) {
+    console.error("Error saving store settings on server:", err);
+  }
+  return res.status(400).json({ success: false, message: "Datos inv\xE1lidos" });
 });
 async function startServer() {
   if (!isProduction) {

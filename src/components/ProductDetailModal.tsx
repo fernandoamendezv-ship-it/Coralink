@@ -16,6 +16,8 @@ import {
 import { StarRating } from './StarRating';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
 import { formatDirectImageUrl } from '../utils/imageUrlResolver';
+import { cleanVariantName } from '../utils/productVariants';
+import { WatermarkOverlay } from './WatermarkOverlay';
 
 interface ProductDetailModalProps {
   product: Product | null;
@@ -51,6 +53,14 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
   const activeProduct: Product = hasVariants
     ? variants[selectedVariantIdx] || product
     : product;
+
+  // Fully synchronized title: clean variant label without duplicates
+  const cleanVarLabel = activeProduct.variantName
+    ? cleanVariantName(activeProduct.variantName)
+    : '';
+  const synchronizedTitle = hasVariants && cleanVarLabel
+    ? `${product.title} • ${cleanVarLabel}`
+    : activeProduct.title;
 
   const [quantity, setQuantity] = useState(1);
   const [selectedOptions, setSelectedOptions] = useState<Record<string, string>>(() => {
@@ -177,6 +187,7 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             <img
               src={formatDirectImageUrl(currentImage)}
               alt={activeProduct.title}
+              referrerPolicy="no-referrer"
               className={`w-full h-full max-h-[380px] md:max-h-full object-cover rounded-2xl shadow-inner ${
                 activeProduct.inStock === false ? 'grayscale-[30%] opacity-85' : ''
               }`}
@@ -241,12 +252,10 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
             </>
           )}
 
-          {/* Product Title Badge on Image (Synchronized with selected variant) */}
-          <div className="absolute bottom-3 inset-x-4 z-10 py-1.5 px-3 bg-slate-950/85 backdrop-blur-md text-center rounded-xl border border-white/15 shadow-md">
-            <span className="text-xs font-bold text-white tracking-wide truncate block">
-              {activeProduct.title}
-            </span>
-          </div>
+          {/* Coralink Watermark on Modal Photo */}
+          {!isReferenceLogo(activeProduct.image) && (
+            <WatermarkOverlay size="md" position="bottom-right" />
+          )}
 
           {/* Badge: Agotado or Promo */}
           <div className="absolute top-4 left-4 z-10 flex flex-col gap-1 items-start">
@@ -277,18 +286,8 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
           <div className="flex items-start justify-between gap-3">
             <div className="flex-1">
               <h2 className="text-lg sm:text-xl font-extrabold text-[#0B2545] dark:text-white leading-snug">
-                {activeProduct.title}
+                {synchronizedTitle}
               </h2>
-
-              {/* Active Variant Label */}
-              {hasVariants && (
-                <div className="flex items-center gap-1.5 text-xs font-bold text-[#1BA7D9] mt-1">
-                  <span className="w-2 h-2 rounded-full bg-[#1BA7D9]" />
-                  <span>
-                    Seleccionado: {activeProduct.variantName || activeProduct.title}
-                  </span>
-                </div>
-              )}
             </div>
 
             {/* Price placed right beside product name */}
@@ -351,21 +350,22 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
 
           {activeTab === 'info' ? (
             <>
-              {/* Interactive Variant Selector Grid */}
+              {/* Interactive Variant Selector Grid (Simplified sizes) */}
               {hasVariants && (
                 <div className="mt-3 p-3 rounded-2xl bg-amber-500/10 dark:bg-amber-500/5 border border-amber-500/20">
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-xs font-black uppercase tracking-wider text-slate-800 dark:text-slate-100 flex items-center gap-1.5">
                       <Sparkles className="w-3.5 h-3.5 text-[#FF6B35]" />
-                      <span>Seleccionar Talla o Rango de Medida:</span>
+                      <span>Tallas:</span>
                     </span>
-                    <span className="text-[11px] font-bold text-[#FF6B35]">
-                      {activeProduct.variantName || activeProduct.title}
+                    <span className="text-xs font-black text-[#FF6B35]">
+                      {cleanVariantName(activeProduct.variantName || activeProduct.title).replace(/[()]/g, '')}
                     </span>
                   </div>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-1.5">
                     {variants.map((v, i) => {
                       const isSel = i === selectedVariantIdx;
+                      const cleanLabel = cleanVariantName(v.variantName || v.title).replace(/[()]/g, '');
                       return (
                         <button
                           key={v.id || i}
@@ -382,8 +382,9 @@ export const ProductDetailModal: React.FC<ProductDetailModalProps> = ({
                               className={`text-xs font-bold truncate ${
                                 isSel ? 'text-[#FF6B35]' : 'text-slate-800 dark:text-slate-200'
                               }`}
+                              title={cleanLabel}
                             >
-                              {v.variantName || v.title}
+                              {cleanLabel}
                             </span>
                             {isSel && <Check className="w-3.5 h-3.5 text-[#FF6B35] shrink-0 ml-1" />}
                           </div>

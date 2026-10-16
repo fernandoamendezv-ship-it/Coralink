@@ -47,6 +47,7 @@ import { EditProductModal } from './EditProductModal';
 import { CORALINK_LOGO_URL, CORALINK_FALLBACK_LOGO_URL, isReferenceLogo } from '../utils/logoConstants';
 import { formatDirectImageUrl } from '../utils/imageUrlResolver';
 import { uploadImageToCloud, openPostimagesUploader, openPostimagesGalleryUpload } from '../utils/cloudImageUploader';
+import { applyWatermarkToImage } from '../utils/watermark';
 import { OfficialGalleryPickerModal } from './OfficialGalleryPickerModal';
 import {
   getPrivacyConfig,
@@ -328,9 +329,40 @@ export const AdminModal: React.FC<AdminModalProps> = ({
   });
 
   const [isUploadingNewImage, setIsUploadingNewImage] = useState(false);
+  const [isWatermarkingNew, setIsWatermarkingNew] = useState(false);
   const [newImageUploadMsg, setNewImageUploadMsg] = useState<string | null>(null);
   const [showGalleryPickerForNew, setShowGalleryPickerForNew] = useState(false);
   const newProductFileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // Dynamic subcategories available for the selected main category
+  const availableSubCatsForAdmin = useMemo(() => {
+    const set = new Set<string>();
+    localProducts
+      .filter((p) => p.mainCategory === newProduct.mainCategory)
+      .forEach((p) => {
+        if (p.subCategory && p.subCategory.trim()) {
+          set.add(p.subCategory.trim());
+        }
+      });
+    return Array.from(set).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
+  }, [localProducts, newProduct.mainCategory]);
+
+  const handleApplyWatermarkToNew = async () => {
+    if (!newProduct.image || isReferenceLogo(newProduct.image)) return;
+    setIsWatermarkingNew(true);
+    try {
+      const watermarked = await applyWatermarkToImage(newProduct.image, 1400, 1400, 0.88);
+      if (watermarked) {
+        setNewProduct((prev) => ({ ...prev, image: watermarked }));
+        setNewImageUploadMsg('✓ ¡Marca de agua con el logo oficial de Coralink aplicada con éxito!');
+        setTimeout(() => setNewImageUploadMsg(null), 5000);
+      }
+    } catch (e) {
+      console.warn('Error watermarking new product image:', e);
+    } finally {
+      setIsWatermarkingNew(false);
+    }
+  };
 
   const handleNewProductFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -575,7 +607,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       id: `custom-${Date.now()}`,
       title: newProduct.title || 'Nuevo Producto Coralink',
       mainCategory: (newProduct.mainCategory as any) || 'Personalizados',
-      subCategory: newProduct.subCategory || 'Fotoregalos',
+      subCategory: newProduct.subCategory?.trim() || 'Fotoregalos',
       price: Number(newProduct.price) || 150,
       originalPrice: Number(newProduct.originalPrice) || Number(newProduct.price) + 50,
       image: newProduct.image && !newProduct.image.includes('unsplash.com') ? newProduct.image : '',
@@ -584,6 +616,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
       reviewsCount: 1,
       salesCount: 1,
       inStock: newProduct.inStock !== false,
+      stock: typeof newProduct.stock === 'number' ? newProduct.stock : (newProduct.inStock !== false ? 10 : 0),
       featured: true,
     };
 
@@ -2397,8 +2430,48 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         type="text"
                         value={newProduct.subCategory}
                         onChange={(e) => setNewProduct({ ...newProduct, subCategory: e.target.value })}
-                        placeholder="Ej: Cerámica, Térmicos"
+                        placeholder="Ej: Cerámica, Térmicos, Alcancías"
                         className="w-full px-3 py-1.5 text-xs rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
+                      />
+                      {availableSubCatsForAdmin.length > 0 && (
+                        <div className="flex flex-wrap gap-1 mt-1.5">
+                          {availableSubCatsForAdmin.map((sub) => (
+                            <button
+                              type="button"
+                              key={sub}
+                              onClick={() => setNewProduct({ ...newProduct, subCategory: sub })}
+                              className={`px-2 py-0.5 rounded-lg text-[10px] font-bold transition-all cursor-pointer ${
+                                newProduct.subCategory === sub
+                                  ? 'bg-[#1BA7D9] text-white shadow-2xs'
+                                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 border border-slate-200 dark:border-slate-700'
+                              }`}
+                            >
+                              {sub}
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="text-[11px] font-bold text-slate-700 dark:text-slate-300 block mb-1">
+                        Stock Inicial (Uds)
+                      </label>
+                      <input
+                        type="number"
+                        min="0"
+                        value={newProduct.stock !== undefined ? newProduct.stock : 10}
+                        onChange={(e) => {
+                          const val = parseInt(e.target.value, 10);
+                          const clean = isNaN(val) ? 0 : Math.max(0, val);
+                          setNewProduct({
+                            ...newProduct,
+                            stock: clean,
+                            inStock: clean > 0,
+                          });
+                        }}
+                        className="w-full px-3 py-1.5 text-xs font-bold rounded-xl border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
+                        placeholder="10"
                       />
                     </div>
 
@@ -2439,6 +2512,17 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                         </span>
                       </div>
 
+                      {/* Watermark Banner */}
+                      <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-[#1BA7D9]/10 dark:bg-[#1BA7D9]/15 border border-[#1BA7D9]/25 text-slate-700 dark:text-slate-200">
+                        <div className="flex items-center gap-2 text-[11px] font-bold">
+                          <Sparkles className="w-3.5 h-3.5 text-[#FF6B35] shrink-0" />
+                          <span>Marca de agua oficial con el logo Coralink protegida en cada foto</span>
+                        </div>
+                        <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#FF6B35] text-white shrink-0">
+                          Automática
+                        </span>
+                      </div>
+
                       <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 items-center">
                         {/* Live Preview Thumbnail */}
                         <div className="flex flex-col items-center justify-center p-2 rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 aspect-square max-w-[100px] mx-auto w-full overflow-hidden">
@@ -2446,6 +2530,7 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                             <img
                               src={newProduct.image}
                               alt="Vista previa"
+                              referrerPolicy="no-referrer"
                               className="w-full h-full object-cover rounded-lg"
                               onError={(e) => {
                                 (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
@@ -2456,6 +2541,18 @@ export const AdminModal: React.FC<AdminModalProps> = ({
                               <ImageIcon className="w-6 h-6 text-slate-400 mx-auto mb-1" />
                               <span className="text-[9px] text-slate-400">Sin foto</span>
                             </div>
+                          )}
+                          {newProduct.image && !isReferenceLogo(newProduct.image) && (
+                            <button
+                              type="button"
+                              onClick={handleApplyWatermarkToNew}
+                              disabled={isWatermarkingNew}
+                              className="mt-1 px-1.5 py-0.5 text-[8px] font-bold rounded bg-[#1BA7D9]/15 hover:bg-[#1BA7D9]/25 text-[#1BA7D9] border border-[#1BA7D9]/30 flex items-center gap-1 transition-all cursor-pointer"
+                              title="Estampar marca de agua oficial con logo Coralink"
+                            >
+                              <Sparkles className="w-2 h-2 text-[#FF6B35]" />
+                              <span>{isWatermarkingNew ? '...' : 'Marca Agua'}</span>
+                            </button>
                           )}
                         </div>
 

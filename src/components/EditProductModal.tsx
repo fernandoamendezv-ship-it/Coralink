@@ -32,6 +32,7 @@ import {
   isViewerPageUrl,
 } from '../utils/imageUrlResolver';
 import { uploadImageToCloud, openPostimagesUploader, openPostimagesGalleryUpload } from '../utils/cloudImageUploader';
+import { applyWatermarkToImage } from '../utils/watermark';
 import { POSTIMAGES_GALLERY_URL } from '../utils/postimagesGallery';
 import { OfficialGalleryPickerModal } from './OfficialGalleryPickerModal';
 
@@ -97,6 +98,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   const [image, setImage] = useState('');
   const [description, setDescription] = useState('');
   const [inStock, setInStock] = useState(true);
+  const [stock, setStock] = useState<number>(10);
   const [featured, setFeatured] = useState(false);
   const [isFlashDeal, setIsFlashDeal] = useState(false);
   const [badge, setBadge] = useState('');
@@ -111,37 +113,29 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
   const [showGalleryPicker, setShowGalleryPicker] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
+  const [isApplyingWatermark, setIsApplyingWatermark] = useState(false);
+
   // Compress image on the client to guarantee small size (<80KB) and prevent localStorage quota errors
   const compressImageFile = (file: File, maxWidth = 1000, quality = 0.82): Promise<string> => {
-    return new Promise((resolve) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const img = new Image();
-        img.onload = () => {
-          let width = img.width;
-          let height = img.height;
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-          const canvas = document.createElement('canvas');
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          if (!ctx) {
-            resolve(e.target?.result as string);
-            return;
-          }
-          ctx.drawImage(img, 0, 0, width, height);
-          const dataUrl = canvas.toDataURL('image/webp', quality);
-          resolve(dataUrl);
-        };
-        img.onerror = () => resolve(e.target?.result as string);
-        img.src = e.target?.result as string;
-      };
-      reader.onerror = () => resolve('');
-      reader.readAsDataURL(file);
-    });
+    return applyWatermarkToImage(file, maxWidth, maxWidth, quality);
+  };
+
+  const handleApplyWatermarkToCurrent = async () => {
+    if (!image || isReferenceLogo(image)) return;
+    setIsApplyingWatermark(true);
+    try {
+      const watermarked = await applyWatermarkToImage(image, 1400, 1400, 0.88);
+      if (watermarked) {
+        setImage(watermarked);
+        setLinkStatus('valid');
+        setUploadSuccessMsg('✓ ¡Marca de agua oficial con el logo Coralink aplicada a la imagen con éxito!');
+        setTimeout(() => setUploadSuccessMsg(null), 5000);
+      }
+    } catch (err) {
+      console.warn('Error applying watermark:', err);
+    } finally {
+      setIsApplyingWatermark(false);
+    }
   };
 
   // Function to process and convert link
@@ -225,6 +219,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       }
       setDescription(product.description || '');
       setInStock(product.inStock !== false);
+      setStock(typeof product.stock === 'number' ? product.stock : (product.inStock !== false ? 10 : 0));
       setFeatured(!!product.featured);
       setIsFlashDeal(!!product.isFlashDeal);
       setBadge(product.badge || '');
@@ -616,6 +611,17 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                   </div>
                 </div>
 
+                {/* Watermark Banner */}
+                <div className="flex items-center justify-between gap-2 p-2 rounded-xl bg-[#1BA7D9]/10 dark:bg-[#1BA7D9]/15 border border-[#1BA7D9]/25 text-slate-700 dark:text-slate-200">
+                  <div className="flex items-center gap-2 text-[11px] font-bold">
+                    <Sparkles className="w-3.5 h-3.5 text-[#FF6B35] shrink-0" />
+                    <span>Marca de agua con el logo oficial de Coralink aplicada a todas las fotos subidas</span>
+                  </div>
+                  <span className="text-[9px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md bg-[#FF6B35] text-white shrink-0">
+                    Logo Coralink
+                  </span>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-center">
                   {/* Preview Thumbnail */}
                   <div className="flex flex-col items-center justify-center p-2 rounded-2xl bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 aspect-square max-w-[140px] mx-auto w-full overflow-hidden relative group">
@@ -623,6 +629,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                       <img
                         src={image}
                         alt="Vista previa"
+                        referrerPolicy="no-referrer"
                         className="w-full h-full object-cover rounded-xl"
                         onError={(e) => {
                           (e.target as HTMLImageElement).src = CORALINK_FALLBACK_LOGO_URL;
@@ -644,6 +651,18 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                     <span className="text-[9px] font-bold text-slate-500 dark:text-slate-400 mt-1 block">
                       Vista previa
                     </span>
+                    {!isReferenceLogo(image) && (
+                      <button
+                        type="button"
+                        onClick={handleApplyWatermarkToCurrent}
+                        disabled={isApplyingWatermark}
+                        className="mt-1 px-2 py-0.5 text-[9px] font-bold rounded-md bg-[#1BA7D9]/15 hover:bg-[#1BA7D9]/25 text-[#1BA7D9] border border-[#1BA7D9]/30 flex items-center gap-1 transition-all cursor-pointer"
+                        title="Aplica o estampa la marca de agua oficial con el logo Coralink"
+                      >
+                        <Sparkles className="w-2.5 h-2.5 text-[#FF6B35]" />
+                        <span>{isApplyingWatermark ? 'Estampando...' : 'Estampar Logo'}</span>
+                      </button>
+                    )}
                   </div>
 
                   {/* Manual URL Link Input */}

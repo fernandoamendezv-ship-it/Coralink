@@ -100,8 +100,8 @@ export const CategoryNav: React.FC<CategoryNavProps> = ({
           })}
         </div>
 
-        {/* Subcategories */}
-        {selectedMainCategory !== 'Todo' && subCategories.length > 0 && (
+        {/* Subcategories: Dynamic buttons automatically derived from all active products */}
+        {subCategories.length > 0 && (
           <div className="mt-3 pt-2.5 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-2 overflow-x-auto no-scrollbar animate-in fade-in duration-200">
             <div className="flex items-center gap-1.5 shrink-0 py-0.5">
               <span className="text-[11px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider hidden sm:inline mr-1">

@@ -584,13 +584,46 @@ export default function App() {
     window.open(`https://wa.me/50582045433?text=${encoded}`, '_blank');
   };
 
-  // Compute Subcategories dynamically ONLY for the currently selected category, sorted A-Z
+  // Handle stock quantity updates directly from ProductCard (Admin-only)
+  const handleUpdateStock = (productId: string, newStock: number) => {
+    const cleanId = productId.startsWith('interactive-')
+      ? productId.replace('interactive-', '')
+      : productId;
+
+    setProducts((prev) => {
+      const updated = prev.map((p) => {
+        if (p.id === productId || p.id === cleanId) {
+          const inStock = newStock > 0;
+          return { ...p, stock: newStock, inStock };
+        }
+        if (p.variants && p.variants.some((v) => v.id === productId || v.id === cleanId)) {
+          const updatedVariants = p.variants.map((v) =>
+            v.id === productId || v.id === cleanId
+              ? { ...v, stock: newStock, inStock: newStock > 0 }
+              : v
+          );
+          const anyInStock = updatedVariants.some((v) => v.inStock !== false);
+          return { ...p, variants: updatedVariants, inStock: anyInStock };
+        }
+        return p;
+      });
+
+      handleSaveProducts(updated);
+      return updated;
+    });
+  };
+
+  // Compute Subcategories dynamically from active products, sorted A-Z
   const availableSubCategories = useMemo(() => {
-    if (selectedCategory === 'Todo') return [];
     const set = new Set<string>();
     products
-      .filter((p) => p.mainCategory === selectedCategory)
-      .forEach((p) => set.add(p.subCategory));
+      .filter((p) => selectedCategory === 'Todo' || p.mainCategory === selectedCategory)
+      .forEach((p) => {
+        const sub = (p.subCategory || '').trim();
+        if (sub) {
+          set.add(sub);
+        }
+      });
     return Array.from(set).sort((a, b) => a.localeCompare(b, 'es', { sensitivity: 'base' }));
   }, [products, selectedCategory]);
 
@@ -657,16 +690,16 @@ const removeAccents = (str: string = ''): string => {
           return true;
         }
 
-        // Main Category filter: When 'Todo' is active, show only 'Personalizados' products
-        if (selectedCategory === 'Todo') {
+        // If a specific subcategory is selected, match that subcategory
+        if (selectedSubCategory !== 'Todas') {
+          if (p.subCategory !== selectedSubCategory) {
+            return false;
+          }
+        } else if (selectedCategory === 'Todo') {
           if (p.mainCategory !== 'Personalizados') {
             return false;
           }
         } else if (p.mainCategory !== selectedCategory) {
-          return false;
-        }
-        // SubCategory filter
-        if (selectedSubCategory !== 'Todas' && p.subCategory !== selectedSubCategory) {
           return false;
         }
         return true;
@@ -965,6 +998,8 @@ const removeAccents = (str: string = ''): string => {
                       onOpenDetail={handleOpenProductDetail}
                       onAddToCart={(p) => handleAddToCart(p, 1)}
                       onDirectWhatsApp={(p) => handleDirectWhatsApp(p, 1)}
+                      isAdmin={isAdminUnlocked}
+                      onUpdateStock={handleUpdateStock}
                     />
                   </div>
                 ))}
@@ -1031,6 +1066,8 @@ const removeAccents = (str: string = ''): string => {
                     onOpenDetail={handleOpenProductDetail}
                     onAddToCart={(p) => handleAddToCart(p, 1)}
                     onDirectWhatsApp={(p) => handleDirectWhatsApp(p, 1)}
+                    isAdmin={isAdminUnlocked}
+                    onUpdateStock={handleUpdateStock}
                   />
                 ))}
               </div>
