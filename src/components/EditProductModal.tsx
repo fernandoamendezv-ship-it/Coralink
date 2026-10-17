@@ -334,6 +334,7 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
       image: cleanSavedImage,
       description: description.trim(),
       inStock,
+      stock: typeof stock === 'number' ? stock : (inStock ? 10 : 0),
       featured,
       isFlashDeal,
       badge: badge.trim() || undefined,
@@ -827,14 +828,19 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                       type="checkbox"
                       id="edit-instock"
                       checked={inStock}
-                      onChange={(e) => setInStock(e.target.checked)}
+                      onChange={(e) => {
+                        const checked = e.target.checked;
+                        setInStock(checked);
+                        if (!checked) setStock(0);
+                        else if (stock === 0) setStock(10);
+                      }}
                       className="w-4 h-4 rounded text-[#1BA7D9] focus:ring-[#1BA7D9] cursor-pointer"
                     />
                     <label htmlFor="edit-instock" className="text-xs font-bold text-slate-700 dark:text-slate-200 cursor-pointer flex items-center gap-1.5 flex-wrap">
                       <span>En Stock:</span>
                       {inStock ? (
                         <span className="text-[10px] font-black text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/60 px-2 py-0.5 rounded-full border border-emerald-200 dark:border-emerald-800">
-                          ✓ Disponible
+                          ✓ Disp ({stock} uds)
                         </span>
                       ) : (
                         <span className="text-[10px] font-black text-rose-600 dark:text-rose-400 bg-rose-50 dark:bg-rose-950/60 px-2 py-0.5 rounded-full border border-rose-200 dark:border-rose-800 animate-pulse">
@@ -842,6 +848,26 @@ export const EditProductModal: React.FC<EditProductModalProps> = ({
                         </span>
                       )}
                     </label>
+                  </div>
+
+                  <div className="flex items-center gap-2 p-2 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700">
+                    <label htmlFor="edit-stock-num" className="text-xs font-bold text-slate-700 dark:text-slate-200 shrink-0">
+                      Unidades Stock:
+                    </label>
+                    <input
+                      id="edit-stock-num"
+                      type="number"
+                      min="0"
+                      value={stock}
+                      onChange={(e) => {
+                        const val = parseInt(e.target.value, 10);
+                        const clean = isNaN(val) ? 0 : Math.max(0, val);
+                        setStock(clean);
+                        setInStock(clean > 0);
+                      }}
+                      className="w-20 px-2 py-1 text-xs font-black rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white"
+                      placeholder="10"
+                    />
                   </div>
 
                   <div className="flex items-center gap-2">
